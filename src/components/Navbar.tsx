@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Zap, Check } from 'lucide-react';
 import Button from '@/components/ui/button';
@@ -31,7 +32,14 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="hover:scale-95 transition-all flex items-center h-full relative z-10">
-          <img src="/logo.png" alt="Lab Buddies Logo" className="h-18 sm:h-22 w-auto object-contain max-h-none scale-105 origin-left" />
+          <Image 
+            src="/logo.png" 
+            alt="Lab Buddies logo - anonymous student file sharing platform" 
+            width={150}
+            height={48}
+            priority
+            className="h-18 sm:h-22 w-auto object-contain max-h-none scale-105 origin-left" 
+          />
         </Link>
 
         {/* Navigation Links */}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { 
   Zap, Shield, Sparkles, Folder, Code, FileText, Trash2, ArrowRight,
@@ -225,6 +226,24 @@ export default function LandingPage() {
 
   return (
     <div ref={pageContainerRef} className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark scroll-smooth overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Lab Buddies",
+            "description": "Lab Buddies is a secure, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "All",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          })
+        }}
+      />
       <Navbar />
 
       {/* Main Content Area */}
@@ -270,25 +289,10 @@ export default function LandingPage() {
                 </Link>
               </motion.div>
 
-              {/* Social Proof */}
-              <motion.div variants={itemVariants} className="flex items-center gap-4 mt-4">
-                <div className="flex -space-x-3">
-                  {['hari', 'karan', 'nitin', 'aman'].map((name, i) => (
-                    <div 
-                      key={name} 
-                      className="w-10 h-10 rounded-full border-[2.5px] border-neo-dark bg-neo-yellow flex items-center justify-center font-archivo text-xs uppercase font-black"
-                      style={{ 
-                        backgroundColor: ['#FFD600', '#FF6A00', '#4F7CFF', '#22C55E'][i],
-                        transform: `rotate(${i * 6 - 9}deg)`
-                      }}
-                    >
-                      {name[0]}
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <span className="bg-neo-yellow text-neo-dark font-archivo text-xs px-2 py-0.5 border-[2px] border-neo-dark rounded shadow-neo-sm font-black mr-2">30K+</span>
-                  <span className="text-xs font-black text-neo-dark/85 uppercase tracking-wide">Trusted by 30K+ Students in 500+ Colleges</span>
+              {/* SEO Value Proposition */}
+              <motion.div variants={itemVariants} className="flex items-center gap-2 mt-4 select-none">
+                <div className="bg-neo-yellow text-neo-dark font-archivo text-xs px-3 py-1 border-[2.5px] border-neo-dark rounded shadow-neo-sm font-black">
+                  No login. No tracking. Just a PIN.
                 </div>
               </motion.div>
             </motion.div>
@@ -533,9 +537,11 @@ export default function LandingPage() {
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 bg-neo-dark text-white rounded-full pl-1 pr-3 py-1 shadow-neo-sm hover:translate-y-[-1px] transition-all cursor-pointer select-none active:translate-y-0 active:shadow-neo-sm"
             >
-              <img 
+              <Image 
                 src="/modi-studio-logo.jpg" 
-                alt="Modi Studio Logo" 
+                alt="Modi Studio logo - publisher and developer of Lab Buddies" 
+                width={20}
+                height={20}
                 className="w-5 h-5 rounded-full object-cover border border-white/20" 
               />
               <span className="font-archivo text-[9.5px] uppercase font-black tracking-wide text-white">

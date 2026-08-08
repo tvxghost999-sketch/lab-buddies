@@ -19,8 +19,33 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Lab Buddies - Student Room Sharing",
-  description: "Instantly share code snippets, notes, files, terminal outputs, and links with classmates using a simple Room PIN. No login required.",
+  title: "Lab Buddies — Share Files & Code with No Login | Student Room Sharing",
+  description: "Lab Buddies is a secure, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
+  metadataBase: new URL("https://lab-buddies-bme8.onrender.com"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Lab Buddies — Share Files & Code with No Login | Student Room Sharing",
+    description: "Lab Buddies is a secure, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
+    url: "https://lab-buddies-bme8.onrender.com",
+    siteName: "Lab Buddies",
+    type: "website",
+    images: [
+      {
+        url: "/logo.png",
+        width: 800,
+        height: 400,
+        alt: "Lab Buddies logo - anonymous student file sharing platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Lab Buddies — Share Files & Code with No Login | Student Room Sharing",
+    description: "Lab Buddies is a secure, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({
