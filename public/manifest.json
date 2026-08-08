@@ -1,0 +1,39 @@
+{
+  "id": "/?source=pwa",
+  "name": "Lab Buddies - Real-time Collaboration",
+  "short_name": "LabBuddies",
+  "description": "Instantly share code snippets, notes, files, terminal outputs, and links with classmates using a simple Room PIN.",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#FCF9F2",
+  "theme_color": "#FFD600",
+  "orientation": "portrait",
+  "scope": "/",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

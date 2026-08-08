@@ -1,0 +1,33 @@
+services:
+  # 1. Express Backend Web Service
+  - type: web
+    name: lab-buddies-backend
+    env: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false # You will paste your MongoDB Atlas Connection string in the dashboard
+      - key: RESEND_API_KEY
+        sync: false # You will paste your Resend API Key in the dashboard
+      - key: RESEND_FROM_EMAIL
+        value: onboarding@resend.dev
+
+  # 2. Next.js Frontend Web Service
+  - type: web
+    name: lab-buddies-frontend
+    env: node
+    plan: free
+    rootDir: .
+    buildCommand: npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        fromService:
+          name: lab-buddies-backend
+          type: web
+          property: host

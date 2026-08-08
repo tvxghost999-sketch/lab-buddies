@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #FFF9F1;
+  --color-neo-yellow: #FFD600;
+  --color-neo-orange: #FF6A00;
+  --color-neo-blue: #4F7CFF;
+  --color-neo-green: #22C55E;
+  --color-neo-purple: #8B5CF6;
+  --color-neo-red: #EF4444;
+  --color-neo-dark: #111111;
+
+  --font-archivo: var(--font-archivo-black), sans-serif;
+  --font-sans: var(--font-inter), sans-serif;
+
+  --shadow-neo: 6px 6px 0px 0px #111111;
+  --shadow-neo-sm: 4px 4px 0px 0px #111111;
+  --shadow-neo-lg: 8px 8px 0px 0px #111111;
+  
+  --shadow-neo-btn: 4px 4px 0px 0px #111111;
+  --shadow-neo-btn-hover: 6px 6px 0px 0px #111111;
+  --shadow-neo-btn-active: 1px 1px 0px 0px #111111;
+}
+
+:root {
+  --background: #FFF9F1;
+  --foreground: #111111;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Custom scrollbars matching the retro neo-brutalist styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF9F1;
+  border-left: 3px solid #111111;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #FFD600;
+  border-radius: 0px;
+  border: 3px solid #111111;
+}
+
+/* Common Neo Brutalism utilities */
+.neo-border {
+  border: 3px solid #111111;
+}
+
+.neo-card {
+  background-color: #ffffff;
+  border: 3px solid #111111;
+  border-radius: 16px;
+  box-shadow: 6px 6px 0px 0px #111111;
+}
+
+.neo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #111111;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-family: var(--font-archivo);
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  box-shadow: 4px 4px 0px 0px #111111;
+  transition: all 0.1s ease;
+  cursor: pointer;
+}
+
+.neo-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #111111;
+}
+
+.neo-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #111111;
+}
+
+.neo-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.neo-input {
+  border: 3px solid #111111;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #111111;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.1s ease;
+}
+
+.neo-input:focus {
+  background-color: #ffffff;
+  box-shadow: 4px 4px 0px 0px #111111;
+}
