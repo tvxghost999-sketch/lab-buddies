@@ -563,10 +563,21 @@ export default function RoomDashboard() {
     }
 
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
-    if (!isPremium) {
+
+    // Track free download count: Ad triggers on every 4th download (3 free downloads allowed)
+    const countStr = typeof window !== 'undefined' ? (localStorage.getItem('lab_buddies_downloads_count') || '0') : '0';
+    const count = parseInt(countStr, 10);
+    const nextCount = count + 1;
+
+    if (!isPremium && nextCount > 0 && nextCount % 4 === 0) {
+      // 4th download attempt: Require ad completion before incrementing and downloading
       setPendingDownload({ fileName: fileItem.fileName, fileUrl: fileItem.fileUrl, fileId: fileItem.id });
       setIsAdOpen(true);
     } else {
+      // Free download (1st, 2nd, 3rd) or Premium: Increment immediately and proceed
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lab_buddies_downloads_count', nextCount.toString());
+      }
       executeFileDownload(fileItem.id, fileItem.fileName, fileItem.fileUrl);
     }
   };
@@ -1266,6 +1277,11 @@ export default function RoomDashboard() {
       <AdInterstitial 
         isOpen={isAdOpen} 
         onComplete={() => {
+          if (typeof window !== 'undefined') {
+            const countStr = localStorage.getItem('lab_buddies_downloads_count') || '0';
+            const count = parseInt(countStr, 10);
+            localStorage.setItem('lab_buddies_downloads_count', (count + 1).toString());
+          }
           if (pendingDownload && pendingDownload.fileUrl) {
             executeFileDownload(pendingDownload.fileId || `file-${Date.now()}`, pendingDownload.fileName, pendingDownload.fileUrl);
           }
@@ -1273,6 +1289,7 @@ export default function RoomDashboard() {
         onClose={() => {
           setIsAdOpen(false);
           setPendingDownload(null);
+          addToast('Ad was cancelled. Download aborted.', 'warning');
         }} 
         actionLabel="Starting Download" 
       />

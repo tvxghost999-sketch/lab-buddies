@@ -29,9 +29,31 @@ export default function SettingsPage() {
 
   const isHost = currentUser?.role === 'host';
 
+  const parseTimerToMinutes = (timerStr?: string) => {
+    if (!timerStr) return 120;
+    let total = 0;
+    const h = timerStr.match(/(\d+)\s*h(?:our)?s?/i);
+    if (h) total += parseInt(h[1], 10) * 60;
+    const m = timerStr.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
+    if (m) total += parseInt(m[1], 10);
+    if (total === 0) {
+      const raw = parseInt(timerStr, 10);
+      if (!isNaN(raw) && raw > 0) total = raw;
+    }
+    return Math.max(5, total || 120);
+  };
+
+  const formatDurationDisplay = (mins: number) => {
+    if (mins < 60) return `${mins} Minutes`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (m === 0) return `${h} ${h === 1 ? 'Hour' : 'Hours'}`;
+    return `${h} ${h === 1 ? 'Hour' : 'Hours'} ${m} Minutes`;
+  };
+
   const [roomName, setRoomName] = useState(activeRoom?.name || 'lab-row-1');
   const [maxMembers, setMaxMembers] = useState(activeRoom?.maxMembers || 20);
-  const [autoDeleteTimer, setAutoDeleteTimer] = useState(activeRoom?.autoDeleteTimer || '2 Hours');
+  const [durationMinutes, setDurationMinutes] = useState(parseTimerToMinutes(activeRoom?.autoDeleteTimer));
   const [roomVisibility, setRoomVisibility] = useState(activeRoom?.roomVisibility ?? true);
 
   const handleSave = (e: React.FormEvent) => {
@@ -48,7 +70,7 @@ export default function SettingsPage() {
     updateRoomSettings({
       name: roomName,
       maxMembers,
-      autoDeleteTimer,
+      autoDeleteTimer: formatDurationDisplay(durationMinutes),
       roomVisibility
     });
   };
@@ -153,15 +175,74 @@ export default function SettingsPage() {
                   <span className="text-[10px] text-[#52525b]">Limit member capacity.</span>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <Select
-                    label="Auto Delete Timer"
-                    disabled={!isHost}
-                    options={autoDeleteOptions}
-                    value={autoDeleteTimer}
-                    onChange={(e) => setAutoDeleteTimer(e.target.value)}
-                  />
-                  <span className="text-[10px] text-[#52525b]">Countdown for clean up.</span>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider flex items-center justify-between">
+                    <span>Auto Delete Timer</span>
+                    <span className="text-[#FFD600] font-bold font-mono lowercase">{formatDurationDisplay(durationMinutes)}</span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={!isHost || durationMinutes <= 5}
+                      onClick={() => setDurationMinutes((prev) => Math.max(5, prev - 5))}
+                      className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-lg font-bold text-white transition-all select-none flex-shrink-0"
+                      title="Decrease by 5 minutes"
+                    >
+                      -
+                    </button>
+                    <div className="flex-1 relative flex items-center min-w-0">
+                      <input
+                        type="number"
+                        min={5}
+                        step={5}
+                        disabled={!isHost}
+                        value={durationMinutes}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (isNaN(val)) setDurationMinutes(5);
+                          else setDurationMinutes(Math.max(5, val));
+                        }}
+                        onBlur={() => {
+                          setDurationMinutes((prev) => {
+                            const snapped = Math.round(prev / 5) * 5;
+                            return Math.max(5, snapped);
+                          });
+                        }}
+                        className="neo-input w-full text-center font-mono font-bold text-sm"
+                        style={{ paddingLeft: '0.75rem', paddingRight: '2rem' }}
+                      />
+                      <span className="absolute right-2.5 text-[11px] text-[#71717a] font-medium pointer-events-none">min</span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!isHost}
+                      onClick={() => setDurationMinutes((prev) => prev + 5)}
+                      className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-lg font-bold text-white transition-all select-none flex-shrink-0"
+                      title="Increase by 5 minutes"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Quick Presets */}
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {[5, 15, 30, 45, 60, 120, 360, 1440].map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        disabled={!isHost}
+                        onClick={() => setDurationMinutes(mins)}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                          durationMinutes === mins
+                            ? 'bg-[#FFD600] text-black font-bold shadow-sm'
+                            : 'bg-white/[0.04] text-[#a1a1aa] hover:bg-white/[0.08] hover:text-white border border-white/[0.06]'
+                        }`}
+                      >
+                        {mins < 60 ? `${mins}m` : mins === 1440 ? '24h' : `${mins / 60}h`}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-[#52525b]">Min 5 mins. Step by 5 min.</span>
                 </div>
               </div>
 

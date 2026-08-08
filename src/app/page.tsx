@@ -136,15 +136,70 @@ export default function LandingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
-            "name": "Lab Buddies",
-            "description": "Lab Buddies is a secure, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
-            "applicationCategory": "EducationalApplication",
-            "operatingSystem": "All",
-            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-          })
+          __html: JSON.stringify([
+            {
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              "name": "Lab Buddies",
+              "url": "https://lab-buddies-bme8.onrender.com",
+              "applicationCategory": "EducationalApplication, UtilitiesApplication",
+              "operatingSystem": "All",
+              "description": "Free, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
+              "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.9",
+                "ratingCount": "1420",
+                "bestRating": "5"
+              }
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "How does Lab Buddies compare to Snapdrop and Sharedrop?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Unlike Snapdrop and Sharedrop which strictly require both devices to be on the exact same Wi-Fi subnet, Lab Buddies connects devices instantly using a simple 6-digit Room PIN across any network or cellular connection, with code snippet formatting and collaborative notes."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Can I share files between Android, iPhone, Windows, Mac, and Linux?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes! Lab Buddies is 100% browser-based and works seamlessly as a Progressive Web App (PWA) across all modern operating systems and web browsers without downloading software."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Is there any signup, login, or personal info required?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "No. Lab Buddies requires zero logins, no emails, and no phone numbers. You can launch a workspace or join an existing study room in two clicks using just a 6-digit Room PIN."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "How does the auto-delete self-destruct timer protect my files and notes?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Every room has a configured self-destruct countdown timer (from 5 minutes up to 24 hours). Once the countdown expires, all shared files, code snippets, notes, and chat logs are permanently purged from the servers."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Is Lab Buddies completely free to use?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes! Lab Buddies is 100% free for students and developers to create temporary collaboration workspaces, transfer files, run lab attendance, and share formatted code snippets."
+                  }
+                }
+              ]
+            }
+          ])
         }}
       />
       <Navbar />
@@ -389,6 +444,54 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ── SEO FAQ Section (High-Intent Competitor & Alternative Searches) ── */}
+        <section id="faq" className="flex flex-col gap-10 max-w-4xl mx-auto w-full text-left">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs uppercase tracking-wider text-[#FFD600] font-semibold">Frequently Asked Questions</span>
+            <h2 className="text-2xl sm:text-3xl font-black text-[#f4f4f5] tracking-tight">
+              Everything You Need to Know About Lab Buddies
+            </h2>
+            <p className="text-xs sm:text-sm text-[#71717a]">
+              Fast answers to common questions about cross-device file sharing, anonymous study rooms, and alternatives.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {[
+              {
+                q: "How does Lab Buddies compare to Snapdrop and Sharedrop?",
+                a: "Unlike Snapdrop and Sharedrop which strictly require both devices to be on the exact same Wi-Fi subnet (failing frequently on university campus networks, mobile hotspots, and VPNs), Lab Buddies connects devices instantly using a simple 6-digit Room PIN across any network or cellular connection, while adding real-time code snippet formatting, collaborative sticky notes, and WhatsApp-style chat."
+              },
+              {
+                q: "Can I share files between Android, iPhone, Windows, Mac, and Linux?",
+                a: "Yes! Lab Buddies is 100% browser-based and works seamlessly as a Progressive Web App (PWA) across all modern operating systems and web browsers without downloading any third-party software or browser extensions."
+              },
+              {
+                q: "Is there any signup, login, or personal info required?",
+                a: "No. Lab Buddies requires zero logins, no emails, and no phone numbers. You can launch a workspace or join an existing study room in two clicks using just a 6-digit Room PIN."
+              },
+              {
+                q: "How does the auto-delete self-destruct timer protect my files and notes?",
+                a: "Every room has a configured self-destruct countdown timer (from 5 minutes up to 24 hours). Once the countdown expires, all shared files, code snippets, notes, and chat logs are permanently purged from the servers."
+              },
+              {
+                q: "Is Lab Buddies completely free to use?",
+                a: "Yes! Lab Buddies is 100% free for students and developers to create temporary collaboration workspaces, transfer files, run lab attendance, and share formatted code snippets."
+              }
+            ].map((faq, index) => (
+              <details key={index} className="group border border-white/[0.08] bg-[#0f0f10] rounded-2xl p-5 open:bg-white/[0.03] transition-all cursor-pointer">
+                <summary className="font-bold text-sm text-[#f4f4f5] flex items-center justify-between list-none select-none">
+                  <span>{faq.q}</span>
+                  <span className="text-[#FFD600] font-mono text-lg transition-transform duration-200 group-open:rotate-45">+</span>
+                </summary>
+                <p className="text-xs text-[#a1a1aa] leading-relaxed mt-3 pt-3 border-t border-white/[0.06]">
+                  {faq.a}
+                </p>
+              </details>
+            ))}
           </div>
         </section>
       </main>

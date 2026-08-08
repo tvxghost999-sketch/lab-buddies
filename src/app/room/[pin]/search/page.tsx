@@ -49,10 +49,18 @@ export default function SearchPage() {
 
   const handleDownload = (fileName: string, fileUrl?: string) => {
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
-    if (!isPremium) {
+
+    const countStr = typeof window !== 'undefined' ? (localStorage.getItem('lab_buddies_downloads_count') || '0') : '0';
+    const count = parseInt(countStr, 10);
+    const nextCount = count + 1;
+
+    if (!isPremium && nextCount > 0 && nextCount % 4 === 0) {
       setPendingDownload({ fileName, fileUrl });
       setIsAdOpen(true);
     } else {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lab_buddies_downloads_count', nextCount.toString());
+      }
       proceedWithDownload(fileName, fileUrl);
     }
   };
@@ -427,11 +435,17 @@ export default function SearchPage() {
       <AdInterstitial 
         isOpen={isAdOpen} 
         onComplete={() => {
+          if (typeof window !== 'undefined') {
+            const countStr = localStorage.getItem('lab_buddies_downloads_count') || '0';
+            const count = parseInt(countStr, 10);
+            localStorage.setItem('lab_buddies_downloads_count', (count + 1).toString());
+          }
           if (pendingDownload) proceedWithDownload(pendingDownload.fileName, pendingDownload.fileUrl);
         }} 
         onClose={() => {
           setIsAdOpen(false);
           setPendingDownload(null);
+          addToast('Ad was cancelled. Download aborted.', 'warning');
         }} 
         actionLabel="Starting Download" 
       />

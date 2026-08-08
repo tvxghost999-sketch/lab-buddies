@@ -8,6 +8,7 @@ export interface Room {
   isFileSharingEnabled: boolean;
   roomVisibility: boolean; // true = Anyone with PIN, false = Restricted
   createdAt: string;
+  createdAtMs?: number;
   createdBy: string;
   status: 'Active' | 'Locked' | 'Expired';
   storageLimit?: number;

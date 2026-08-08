@@ -19,9 +19,17 @@ export default function CreateRoomPage() {
 
   const [roomName, setRoomName] = useState('lab-row-1');
   const [maxMembers, setMaxMembers] = useState(10);
-  const [autoDeleteTimer, setAutoDeleteTimer] = useState('1 Hour');
+  const [durationMinutes, setDurationMinutes] = useState(60);
   const [hostName, setHostName] = useState('');
   const [roomPassword, setRoomPassword] = useState('');
+
+  const formatDurationDisplay = (mins: number) => {
+    if (mins < 60) return `${mins} Minutes`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (m === 0) return `${h} ${h === 1 ? 'Hour' : 'Hours'}`;
+    return `${h} ${h === 1 ? 'Hour' : 'Hours'} ${m} Minutes`;
+  };
 
   const isPremium = !!(loggedInUser?.plan && loggedInUser.plan !== 'free');
 
@@ -29,10 +37,10 @@ export default function CreateRoomPage() {
   useEffect(() => {
     if (isPremium) {
       setMaxMembers(20);
-      setAutoDeleteTimer('2 Hours');
+      setDurationMinutes(120);
     } else {
       setMaxMembers(10);
-      setAutoDeleteTimer('1 Hour');
+      setDurationMinutes(60);
     }
   }, [isPremium]);
 
@@ -58,6 +66,7 @@ export default function CreateRoomPage() {
 
   const proceedWithCreation = async () => {
     const creatorName = hostName.trim() || 'Aman';
+    const autoDeleteTimer = formatDurationDisplay(durationMinutes);
     const newPin = await createRoom(roomName, maxMembers, autoDeleteTimer, roomPassword, creatorName);
     setIsAdOpen(false);
     router.push(`/room/${newPin}`);
@@ -162,13 +171,70 @@ export default function CreateRoomPage() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <Select
-                      label="Auto Delete Timer"
-                      options={autoDeleteOptions}
-                      value={autoDeleteTimer}
-                      onChange={(e) => setAutoDeleteTimer(e.target.value)}
-                    />
-                    <span className="text-[10px] text-[#52525b]">Room and all data will be deleted after the selected time.</span>
+                    <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider flex items-center justify-between">
+                      <span>Auto Delete Timer</span>
+                      <span className="text-[#FFD600] font-bold font-mono lowercase">{formatDurationDisplay(durationMinutes)}</span>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setDurationMinutes((prev) => Math.max(5, prev - 5))}
+                        disabled={durationMinutes <= 5}
+                        className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-lg font-bold text-white transition-all select-none flex-shrink-0"
+                        title="Decrease by 5 minutes"
+                      >
+                        -
+                      </button>
+                      <div className="flex-1 relative flex items-center min-w-0">
+                        <input
+                          type="number"
+                          min={5}
+                          step={5}
+                          value={durationMinutes}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (isNaN(val)) setDurationMinutes(5);
+                            else setDurationMinutes(Math.max(5, val));
+                          }}
+                          onBlur={() => {
+                            setDurationMinutes((prev) => {
+                              const snapped = Math.round(prev / 5) * 5;
+                              return Math.max(5, snapped);
+                            });
+                          }}
+                          className="neo-input w-full text-center font-mono font-bold text-sm"
+                          style={{ paddingLeft: '0.75rem', paddingRight: '2rem' }}
+                        />
+                        <span className="absolute right-2.5 text-[11px] text-[#71717a] font-medium pointer-events-none">min</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDurationMinutes((prev) => prev + 5)}
+                        className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 flex items-center justify-center text-lg font-bold text-white transition-all select-none flex-shrink-0"
+                        title="Increase by 5 minutes"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {[5, 15, 30, 45, 60, 120, 360, 1440].map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => setDurationMinutes(mins)}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                            durationMinutes === mins
+                              ? 'bg-[#FFD600] text-black font-bold shadow-sm'
+                              : 'bg-white/[0.04] text-[#a1a1aa] hover:bg-white/[0.08] hover:text-white border border-white/[0.06]'
+                          }`}
+                        >
+                          {mins < 60 ? `${mins}m` : mins === 1440 ? '24h' : `${mins / 60}h`}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-[#52525b]">Min 5 mins. Step by 5 min.</span>
                   </div>
                 </div>
 

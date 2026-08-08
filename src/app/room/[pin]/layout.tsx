@@ -291,29 +291,64 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   // Mobile menu control
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Countdown timer simulation (starts at 1 hour 45 minutes 22 seconds and decreases)
-  const [timeLeft, setTimeLeft] = useState({ hrs: 1, mins: 45, secs: 22 });
+  // Dynamic Room Self-Destruct Countdown Timer
+  const [timeLeft, setTimeLeft] = useState({ hrs: 0, mins: 0, secs: 0 });
 
   useEffect(() => {
+    if (!activeRoom) return;
+
+    const parseTimerMs = (timerStr?: string) => {
+      if (!timerStr) return 2 * 60 * 60 * 1000;
+      let totalMs = 0;
+      const hourMatch = timerStr.match(/(\d+)\s*h(?:our)?s?/i);
+      if (hourMatch) {
+        totalMs += parseInt(hourMatch[1], 10) * 60 * 60 * 1000;
+      }
+      const minMatch = timerStr.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
+      if (minMatch) {
+        totalMs += parseInt(minMatch[1], 10) * 60 * 1000;
+      }
+      if (totalMs === 0) {
+        const rawNum = parseInt(timerStr, 10);
+        if (!isNaN(rawNum) && rawNum > 0) totalMs = rawNum * 60 * 1000;
+      }
+      return totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
+    };
+
+    const updateCountdown = () => {
+      const durationMs = parseTimerMs(activeRoom.autoDeleteTimer);
+      const createdMs = activeRoom.createdAtMs || (activeRoom.createdAt ? new Date(activeRoom.createdAt).getTime() : Date.now());
+      const elapsedMs = Math.max(0, Date.now() - createdMs);
+      const remainingMs = Math.max(0, durationMs - elapsedMs);
+
+      const totalSeconds = Math.floor(remainingMs / 1000);
+      const hrs = Math.floor(totalSeconds / 3600);
+      const mins = Math.floor((totalSeconds % 3600) / 60);
+      const secs = totalSeconds % 60;
+
+      setTimeLeft({ hrs, mins, secs });
+
+      if (remainingMs <= 0) {
+        addToast('Room has expired and self-destructed!', 'error');
+        router.push('/');
+        return false;
+      }
+      return true;
+    };
+
+    // Calculate immediately
+    const isStillActive = updateCountdown();
+    if (!isStillActive) return;
+
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.secs > 0) {
-          return { ...prev, secs: prev.secs - 1 };
-        } else if (prev.mins > 0) {
-          return { hrs: prev.hrs, mins: prev.mins - 1, secs: 59 };
-        } else if (prev.hrs > 0) {
-          return { hrs: prev.hrs - 1, mins: 59, secs: 59 };
-        } else {
-          clearInterval(timer);
-          addToast('Room has expired and self-destructed!', 'error');
-          router.push('/');
-          return { hrs: 0, mins: 0, secs: 0 };
-        }
-      });
+      const active = updateCountdown();
+      if (!active) {
+        clearInterval(timer);
+      }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router, addToast]);
+  }, [activeRoom, router, addToast]);
 
   // Copy PIN to clipboard
   const handleCopyPin = () => {

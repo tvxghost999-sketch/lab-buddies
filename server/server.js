@@ -150,18 +150,21 @@ const Activity = mongoose.model('Activity', ActivitySchema);
 
 // --- Room Cleanup & Self-Destruct Helpers ---
 const parseTimerDuration = (timerStr) => {
-  const match = timerStr.match(/^(\d+)\s+(Minute|Hour)s?$/i);
-  if (!match) return 2 * 60 * 60 * 1000; // default 2 hours
-
-  const val = parseInt(match[1]);
-  const unit = match[2].toLowerCase();
-
-  if (unit.startsWith('minute')) {
-    return val * 60 * 1000;
-  } else if (unit.startsWith('hour')) {
-    return val * 60 * 60 * 1000;
+  if (!timerStr) return 2 * 60 * 60 * 1000;
+  let totalMs = 0;
+  const hourMatch = timerStr.match(/(\d+)\s*h(?:our)?s?/i);
+  if (hourMatch) {
+    totalMs += parseInt(hourMatch[1], 10) * 60 * 60 * 1000;
   }
-  return 2 * 60 * 60 * 1000;
+  const minMatch = timerStr.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
+  if (minMatch) {
+    totalMs += parseInt(minMatch[1], 10) * 60 * 1000;
+  }
+  if (totalMs === 0) {
+    const rawNum = parseInt(timerStr, 10);
+    if (!isNaN(rawNum) && rawNum > 0) totalMs = rawNum * 60 * 1000;
+  }
+  return totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
 };
 
 const cleanupRoomData = async (pin) => {
