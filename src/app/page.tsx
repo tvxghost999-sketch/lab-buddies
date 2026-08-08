@@ -20,8 +20,54 @@ if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
 }
 
+const RollingDigit = ({ value, baseAngle }: { value: number; baseAngle: number }) => {
+  return (
+    <motion.div 
+      animate={{ 
+        rotate: value % 2 === 0 
+          ? [baseAngle, baseAngle - 6, baseAngle] 
+          : [baseAngle, baseAngle + 6, baseAngle]
+      }}
+      transition={{ type: "spring", stiffness: 100, damping: 8 }}
+      className="w-10 h-12 border-[3px] border-neo-dark rounded-[8px] bg-white overflow-hidden shadow-neo-sm relative flex justify-center"
+      style={{ transform: `rotate(${baseAngle}deg)` }}
+    >
+      <motion.div
+        animate={{ y: -value * 42 }}
+        transition={{ type: "spring", stiffness: 45, damping: 10 }}
+        className="flex flex-col items-center w-full absolute top-0"
+      >
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+          <span 
+            key={num} 
+            className="w-full flex items-center justify-center font-archivo text-lg sm:text-xl font-black text-neo-dark select-none"
+            style={{ height: '42px', lineHeight: '42px' }}
+          >
+            {num}
+          </span>
+        ))}
+      </motion.div>
+    </motion.div>
+  );
+};
+
 export default function LandingPage() {
   const pageContainerRef = useRef<HTMLDivElement>(null);
+  const [pinDigits, setPinDigits] = React.useState<number[]>([4, 0, 8, 2, 1, 5]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPinDigits([
+        Math.floor(Math.random() * 10),
+        Math.floor(Math.random() * 10),
+        Math.floor(Math.random() * 10),
+        Math.floor(Math.random() * 10),
+        Math.floor(Math.random() * 10),
+        Math.floor(Math.random() * 10),
+      ]);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
@@ -337,14 +383,12 @@ export default function LandingPage() {
                     Room PIN
                   </span>
                   <div className="flex gap-1.5">
-                    {['4', '0', '8', '2', '1', '5'].map((digit, idx) => (
-                      <div 
+                    {pinDigits.map((digit, idx) => (
+                      <RollingDigit 
                         key={idx} 
-                        className="w-10 h-12 border-[3px] border-neo-dark rounded-[8px] bg-white flex items-center justify-center font-archivo text-lg sm:text-xl font-black text-neo-dark shadow-neo-sm"
-                        style={{ transform: `rotate(${(idx - 2.5) * 3}deg)` }}
-                      >
-                        {digit}
-                      </div>
+                        value={digit} 
+                        baseAngle={(idx - 2.5) * 3} 
+                      />
                     ))}
                   </div>
                 </div>
