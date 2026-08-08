@@ -419,6 +419,11 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   }
 });
 
+// Health check ping route
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
+
 // Check room exists and retrieve data
 app.get('/api/room/:pin', async (req, res) => {
   try {
