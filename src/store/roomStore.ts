@@ -75,6 +75,7 @@ interface RoomState {
     state: string;
     isVerified: boolean;
     plan?: string;
+    rollNumber?: string;
   } | null;
   setLoggedInUser: (user: any) => void;
   logoutUser: () => void;

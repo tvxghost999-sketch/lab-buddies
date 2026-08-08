@@ -71,7 +71,11 @@ export default function LabAttendancePage() {
     const overrides: Record<string, Record<string, 'present' | 'absent' | 'auto'>> = {};
 
     // Process feed items chronologically
-    const sortedFeed = [...feedItems].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    const sortedFeed = [...feedItems].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeA - timeB;
+    });
 
     sortedFeed.forEach(item => {
       const content = item.content || '';
@@ -435,7 +439,7 @@ export default function LabAttendancePage() {
               </div>
 
               {isHost ? (
-                <Button variant="danger" size="sm" onClick={handleEndSession} className="gap-1.5 font-semibold text-xs py-2 px-4">
+                <Button variant="red" size="sm" onClick={handleEndSession} className="gap-1.5 font-semibold text-xs py-2 px-4">
                   <Square className="w-3.5 h-3.5 fill-white" />
                   Close Session
                 </Button>

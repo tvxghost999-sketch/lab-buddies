@@ -40,6 +40,8 @@ export interface FeedItem {
   fileUrl?: string;  // For files (downloadable URL)
   cloudinaryPublicId?: string; // For files hosted on Cloudinary
   fileSizeBytes?: number; // Raw file size in bytes
+  createdAt?: string;
+  createdAtMs?: number;
 }
 
 export interface Note {
