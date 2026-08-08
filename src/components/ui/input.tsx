@@ -6,10 +6,14 @@ import React, { useState, useEffect, useRef } from 'react';
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  icon?: React.ReactNode;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className = '', ...props }, ref) => {
+  ({ label, error, icon, leftIcon, rightIcon, className = '', ...props }, ref) => {
+    const activeLeftIcon = leftIcon || icon;
     return (
       <div className="flex flex-col gap-1.5 w-full">
         {label && (
@@ -17,11 +21,23 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <input
-          ref={ref}
-          className={`neo-input text-sm ${error ? 'border-[#EF4444]/50 focus:border-[#EF4444]/70' : ''} ${className}`}
-          {...props}
-        />
+        <div className="relative w-full flex items-center">
+          {activeLeftIcon && (
+            <span className="absolute left-3.5 flex items-center pointer-events-none text-white/40 z-10">
+              {activeLeftIcon}
+            </span>
+          )}
+          <input
+            ref={ref}
+            className={`neo-input text-sm ${activeLeftIcon ? 'has-icon-left' : ''} ${rightIcon ? 'has-icon-right' : ''} ${error ? 'border-[#EF4444]/50 focus:border-[#EF4444]/70' : ''} ${className}`}
+            {...props}
+          />
+          {rightIcon && (
+            <span className="absolute right-3.5 flex items-center text-white/40 z-10">
+              {rightIcon}
+            </span>
+          )}
+        </div>
         {error && <span className="text-xs text-[#EF4444]">{error}</span>}
       </div>
     );

@@ -122,6 +122,12 @@ body {
   transition: all 0.15s ease;
   width: 100%;
 }
+.neo-input.has-icon-left, input.has-icon-left {
+  padding-left: 2.75rem !important;
+}
+.neo-input.has-icon-right, input.has-icon-right {
+  padding-right: 2.75rem !important;
+}
 .neo-input::placeholder { color: rgba(255,255,255,0.3); }
 .neo-input:focus {
   border-color: rgba(255,214,0,0.5);

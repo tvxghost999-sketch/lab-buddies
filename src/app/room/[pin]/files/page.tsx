@@ -148,14 +148,14 @@ export default function FilesPage() {
       {/* Toolbar */}
       <div className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between bg-[#0f0f10] border border-white/[0.08] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
         {/* Search */}
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+        <div className="relative w-full md:w-80 flex items-center">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none z-10" />
           <input
             type="text"
             placeholder="Search files..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="neo-input !pl-9 pr-4 py-2 text-sm w-full"
+            className="neo-input has-icon-left pr-4 py-2 text-sm w-full"
           />
         </div>
 

@@ -8,7 +8,7 @@ import {
   Paperclip, Code, Send, File, Download, Copy, 
   Sparkles, Crown, Terminal, MessageSquare, MoreVertical,
   FileText, ShieldCheck, HelpCircle, Check, X,
-  FileArchive, FileCode, FileImage, Lock, Users, Activity, Smile
+  FileArchive, FileCode, FileImage, Lock, Users, Activity, Smile, Eye, Maximize2, ExternalLink
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
@@ -79,7 +79,42 @@ export default function RoomDashboard() {
   const [selectedFileCloudinaryId, setSelectedFileCloudinaryId] = useState('');
   const [isFileUploading, setIsFileUploading] = useState(false);
   const [isAdOpen, setIsAdOpen] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState<{ fileName: string; fileUrl?: string } | null>(null);
+  const [pendingDownload, setPendingDownload] = useState<{ fileName: string; fileUrl?: string; fileId?: string } | null>(null);
+
+  // WhatsApp-style file downloading & preview states
+  const [downloadingIds, setDownloadingIds] = useState<Record<string, boolean>>({});
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+  const [previewFile, setPreviewFile] = useState<{
+    fileName: string;
+    fileUrl: string;
+    fileType?: string;
+    fileSize?: string;
+  } | null>(null);
+
+  // Load downloaded files cache for this room
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`downloaded_files_${pin}`);
+        if (stored) {
+          setDownloadedIds(new Set(JSON.parse(stored)));
+        }
+      } catch (e) {
+        console.error('Error loading downloaded files cache:', e);
+      }
+    }
+  }, [pin]);
+
+  const markFileDownloaded = (fileId: string) => {
+    setDownloadedIds((prev) => {
+      const next = new Set(prev);
+      next.add(fileId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`downloaded_files_${pin}`, JSON.stringify(Array.from(next)));
+      }
+      return next;
+    });
+  };
 
   const [activePickerId, setActivePickerId] = useState<string | null>(null);
   const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '🎉', '👏', '🚀', '💯', '🤔'];
@@ -442,23 +477,62 @@ export default function RoomDashboard() {
     addToast('Code snippet copied to clipboard!', 'success');
   };
 
-  const handleDownload = (fileName: string, fileUrl?: string) => {
+  const handleFileClick = (fileItem: { id: string; fileName: string; fileUrl?: string; fileType?: string; fileSize?: string }) => {
+    if (!fileItem.fileUrl) {
+      addToast('File link is missing.', 'error');
+      return;
+    }
+
+    const isDownloaded = downloadedIds.has(fileItem.id);
+
+    if (isDownloaded) {
+      // Open in-app WhatsApp preview modal directly!
+      setPreviewFile({
+        fileName: fileItem.fileName,
+        fileUrl: fileItem.fileUrl,
+        fileType: fileItem.fileType,
+        fileSize: fileItem.fileSize,
+      });
+      return;
+    }
+
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
     if (!isPremium) {
-      setPendingDownload({ fileName, fileUrl });
+      setPendingDownload({ fileName: fileItem.fileName, fileUrl: fileItem.fileUrl, fileId: fileItem.id });
       setIsAdOpen(true);
     } else {
-      proceedWithDownload(fileName, fileUrl);
+      executeFileDownload(fileItem.id, fileItem.fileName, fileItem.fileUrl);
     }
   };
 
-  const proceedWithDownload = (fileName: string, fileUrl?: string) => {
+  const executeFileDownload = (fileId: string, fileName: string, fileUrl: string) => {
+    setDownloadingIds((prev) => ({ ...prev, [fileId]: true }));
     setIsAdOpen(false);
     setPendingDownload(null);
-    if (!fileUrl) {
-      addToast('Download link is missing.', 'error');
-      return;
-    }
+    addToast(`Downloading ${fileName}...`, 'info');
+
+    // Simulate WhatsApp smooth download progress and download to disk
+    setTimeout(() => {
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.target = '_blank';
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setDownloadingIds((prev) => {
+        const next = { ...prev };
+        delete next[fileId];
+        return next;
+      });
+
+      markFileDownloaded(fileId);
+      addToast(`${fileName} downloaded successfully!`, 'success');
+    }, 1200);
+  };
+
+  const handleDirectDownload = (fileName: string, fileUrl: string) => {
     const link = document.createElement('a');
     link.href = fileUrl;
     link.target = '_blank';
@@ -466,7 +540,7 @@ export default function RoomDashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    addToast(`Downloading ${fileName}...`, 'success');
+    addToast(`Saving ${fileName}...`, 'success');
   };
 
   // Reactions Map Compiler
@@ -713,7 +787,8 @@ export default function RoomDashboard() {
                           onMouseLeave={endLongPress}
                           onTouchStart={() => startLongPress(itemId)}
                           onTouchEnd={endLongPress}
-                          className="border border-white/[0.08] rounded-2xl bg-[#22C55E]/10 p-3 w-full max-w-sm flex items-center gap-4 text-left cursor-pointer active:scale-[0.99] transition-transform duration-100"
+                          onClick={() => handleFileClick({ id: itemId, fileName: item.fileName || 'File', fileUrl: item.fileUrl, fileType: item.fileType, fileSize: item.fileSize })}
+                          className="border border-white/[0.08] rounded-2xl bg-[#22C55E]/10 hover:bg-[#22C55E]/15 p-3 w-full max-w-sm flex items-center gap-3.5 text-left cursor-pointer active:scale-[0.99] transition-all duration-150 group select-none shadow-[0_2px_12px_rgba(0,0,0,0.2)]"
                         >
                           <div className="w-10 h-10 bg-[#EF4444]/15 border border-[#EF4444]/20 rounded-xl flex flex-col items-center justify-center text-[8.5px] font-bold text-[#EF4444] flex-shrink-0 select-none">
                             <FileText className="w-4 h-4 text-[#EF4444]" />
@@ -723,12 +798,17 @@ export default function RoomDashboard() {
                             <span className="text-sm font-semibold text-[#f4f4f5] truncate">{item.fileName}</span>
                             <span className="text-xs text-[#71717a] mt-0.5">{item.fileSize}</span>
                           </div>
-                          <button 
-                            onClick={() => handleDownload(item.fileName || '', item.fileUrl)}
-                            className="w-8 h-8 rounded-xl border border-white/10 bg-white/5 hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 text-[#a1a1aa]"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
+                          
+                          {/* WhatsApp Download / Preview Action Button */}
+                          <div className="w-9 h-9 rounded-full border border-white/10 bg-white/5 group-hover:bg-[#FFD600]/20 group-hover:border-[#FFD600]/40 flex items-center justify-center flex-shrink-0 transition-all text-[#a1a1aa] group-hover:text-[#FFD600]">
+                            {downloadingIds[itemId] ? (
+                              <div className="w-4 h-4 border-2 border-white/20 border-t-[#FFD600] rounded-full animate-spin" />
+                            ) : downloadedIds.has(itemId) ? (
+                              <Eye className="w-4 h-4 text-[#22C55E]" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -850,7 +930,8 @@ export default function RoomDashboard() {
                           onMouseLeave={endLongPress}
                           onTouchStart={() => startLongPress(itemId)}
                           onTouchEnd={endLongPress}
-                          className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 w-full max-w-sm flex items-center gap-4 text-left cursor-pointer active:scale-[0.99] transition-transform duration-100"
+                          onClick={() => handleFileClick({ id: itemId, fileName: item.fileName || 'File', fileUrl: item.fileUrl, fileType: item.fileType, fileSize: item.fileSize })}
+                          className="border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] rounded-2xl p-3 w-full max-w-sm flex items-center gap-3.5 text-left cursor-pointer active:scale-[0.99] transition-all duration-150 group select-none shadow-[0_2px_12px_rgba(0,0,0,0.2)]"
                         >
                           <div className="w-10 h-10 bg-[#EF4444]/15 border border-[#EF4444]/20 rounded-xl flex flex-col items-center justify-center text-[8.5px] font-bold text-[#EF4444] flex-shrink-0 select-none">
                             <FileText className="w-4 h-4 text-[#EF4444]" />
@@ -860,12 +941,17 @@ export default function RoomDashboard() {
                             <span className="text-sm font-semibold text-[#f4f4f5] truncate">{item.fileName}</span>
                             <span className="text-xs text-[#71717a] mt-0.5">{item.fileSize}</span>
                           </div>
-                          <button 
-                            onClick={() => handleDownload(item.fileName || '', item.fileUrl)}
-                            className="w-8 h-8 rounded-xl border border-white/10 bg-white/5 hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 text-[#a1a1aa]"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
+
+                          {/* WhatsApp Download / Preview Action Button */}
+                          <div className="w-9 h-9 rounded-full border border-white/10 bg-white/5 group-hover:bg-[#FFD600]/20 group-hover:border-[#FFD600]/40 flex items-center justify-center flex-shrink-0 transition-all text-[#a1a1aa] group-hover:text-[#FFD600]">
+                            {downloadingIds[itemId] ? (
+                              <div className="w-4 h-4 border-2 border-white/20 border-t-[#FFD600] rounded-full animate-spin" />
+                            ) : downloadedIds.has(itemId) ? (
+                              <Eye className="w-4 h-4 text-[#22C55E]" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -1095,7 +1181,9 @@ export default function RoomDashboard() {
       <AdInterstitial 
         isOpen={isAdOpen} 
         onComplete={() => {
-          if (pendingDownload) proceedWithDownload(pendingDownload.fileName, pendingDownload.fileUrl);
+          if (pendingDownload && pendingDownload.fileUrl) {
+            executeFileDownload(pendingDownload.fileId || `file-${Date.now()}`, pendingDownload.fileName, pendingDownload.fileUrl);
+          }
         }} 
         onClose={() => {
           setIsAdOpen(false);
@@ -1103,6 +1191,119 @@ export default function RoomDashboard() {
         }} 
         actionLabel="Starting Download" 
       />
+
+      {/* WhatsApp In-App File Preview Modal */}
+      {previewFile && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 select-none animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl max-h-[90vh] bg-[#0f0f10] border border-white/[0.08] rounded-2xl flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 border-b border-white/[0.08] bg-white/[0.02] flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/20 flex items-center justify-center text-[#FFD600] flex-shrink-0">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className="text-sm font-semibold text-[#f4f4f5] truncate">{previewFile.fileName}</span>
+                  <span className="text-[10px] text-[#71717a]">
+                    {previewFile.fileSize || 'Preview Available'} • {previewFile.fileType?.toUpperCase() || 'FILE'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDirectDownload(previewFile.fileName, previewFile.fileUrl)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-[#f4f4f5] hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] text-xs font-semibold transition-all cursor-pointer"
+                  title="Save to device"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Save</span>
+                </button>
+                <button
+                  onClick={() => setPreviewFile(null)}
+                  className="p-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-[#71717a] hover:text-[#f4f4f5] hover:bg-white/[0.08] transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Preview Body */}
+            <div className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center bg-[#050608]/50 min-h-[300px]">
+              {(() => {
+                const ext = (previewFile.fileType || previewFile.fileName.split('.').pop() || '').toLowerCase();
+                const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'image'].some(e => ext.includes(e));
+                const isPdf = ext === 'pdf';
+                const isVideo = ['mp4', 'webm', 'ogg'].some(e => ext.includes(e));
+                const isAudio = ['mp3', 'wav', 'aac'].some(e => ext.includes(e));
+
+                if (isImage) {
+                  return (
+                    <div className="relative max-h-[70vh] flex items-center justify-center">
+                      <img 
+                        src={previewFile.fileUrl} 
+                        alt={previewFile.fileName}
+                        className="max-h-[68vh] max-w-full w-auto object-contain rounded-xl shadow-2xl border border-white/[0.06]"
+                      />
+                    </div>
+                  );
+                }
+
+                if (isPdf) {
+                  return (
+                    <iframe 
+                      src={previewFile.fileUrl} 
+                      className="w-full h-[68vh] rounded-xl border border-white/[0.08] bg-white"
+                      title="PDF Preview"
+                    />
+                  );
+                }
+
+                if (isVideo) {
+                  return (
+                    <video 
+                      controls 
+                      src={previewFile.fileUrl} 
+                      className="max-h-[68vh] w-auto max-w-full rounded-xl shadow-2xl"
+                    />
+                  );
+                }
+
+                if (isAudio) {
+                  return (
+                    <div className="flex flex-col items-center gap-4 p-8 bg-white/[0.02] border border-white/[0.08] rounded-2xl">
+                      <FileText className="w-12 h-12 text-[#FFD600]" />
+                      <span className="text-sm font-semibold text-[#f4f4f5]">{previewFile.fileName}</span>
+                      <audio controls src={previewFile.fileUrl} className="w-72" />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="flex flex-col items-center justify-center text-center gap-4 p-8 max-w-md bg-white/[0.02] border border-white/[0.08] rounded-2xl">
+                    <div className="w-16 h-16 rounded-2xl bg-[#FFD600]/10 border border-[#FFD600]/25 flex items-center justify-center text-[#FFD600]">
+                      <FileText className="w-8 h-8" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h4 className="text-base font-bold text-[#f4f4f5]">{previewFile.fileName}</h4>
+                      <p className="text-xs text-[#71717a]">
+                        This file format ({previewFile.fileType || 'binary'}) does not support direct browser rendering.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDirectDownload(previewFile.fileName, previewFile.fileUrl)}
+                      className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FFD600] text-black font-bold text-xs hover:bg-[#FFD600]/90 transition-all shadow-[0_0_20px_rgba(255,214,0,0.2)] cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download / Open on Device</span>
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAutoCheckIn && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-200">

@@ -229,16 +229,16 @@ export default function SignupPage() {
             {/* Name */}
             <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Your Name</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-4 w-4 text-white/30" />
+              <div className="relative flex items-center">
+                <span className="absolute left-3.5 flex items-center pointer-events-none text-white/40 z-10">
+                  <User className="h-4 w-4" />
                 </span>
                 <input
                   type="text"
                   placeholder="e.g. John Doe"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="neo-input w-full text-sm pl-9"
+                  className="neo-input has-icon-left w-full text-sm"
                   disabled={loading}
                 />
               </div>
@@ -247,16 +247,16 @@ export default function SignupPage() {
             {/* Email */}
             <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Email Address</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-4 w-4 text-white/30" />
+              <div className="relative flex items-center">
+                <span className="absolute left-3.5 flex items-center pointer-events-none text-white/40 z-10">
+                  <Mail className="h-4 w-4" />
                 </span>
                 <input
                   type="email"
                   placeholder="name@college.edu"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="neo-input w-full text-sm pl-9"
+                  className="neo-input has-icon-left w-full text-sm"
                   disabled={loading}
                 />
               </div>
@@ -265,16 +265,16 @@ export default function SignupPage() {
             {/* Password */}
             <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Password</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-white/30" />
+              <div className="relative flex items-center">
+                <span className="absolute left-3.5 flex items-center pointer-events-none text-white/40 z-10">
+                  <Lock className="h-4 w-4" />
                 </span>
                 <input
                   type="password"
                   placeholder="••••••••"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="neo-input w-full text-sm pl-9"
+                  className="neo-input has-icon-left w-full text-sm"
                   disabled={loading}
                 />
               </div>

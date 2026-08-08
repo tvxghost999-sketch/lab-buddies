@@ -227,14 +227,14 @@ export default function SearchPage() {
 
       {/* Big Search Input Field */}
       <form onSubmit={(e) => e.preventDefault()} className="p-4 flex gap-3 bg-[#0f0f10] border border-white/[0.08] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+        <div className="relative flex-1 flex items-center">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none z-10" />
           <input
             type="text"
             placeholder="Type search terms here..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="neo-input !pl-11 pr-4 py-3 text-sm w-full"
+            className="neo-input has-icon-left pr-4 py-3 text-sm w-full"
           />
         </div>
         <Button type="submit" variant="yellow" size="md" className="gap-1.5 px-6 shadow-[0_0_15px_rgba(255,214,0,0.15)]">
