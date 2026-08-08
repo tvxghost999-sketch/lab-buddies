@@ -354,8 +354,11 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   leaveRoom: () => {
-    if (typeof window !== 'undefined' && get().activeRoom?.pin) {
-      sessionStorage.removeItem(`room_user_${get().activeRoom!.pin}`);
+    const pin = get().activeRoom?.pin;
+    if (typeof window !== 'undefined' && pin) {
+      sessionStorage.removeItem(`room_user_${pin}`);
+      sessionStorage.removeItem(`knock_approved_${pin}`);
+      localStorage.removeItem(`knock_approved_${pin}`);
     }
     socketService.disconnect();
     set({

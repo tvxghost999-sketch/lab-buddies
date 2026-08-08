@@ -148,15 +148,16 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
     if (!currentUser) return;
     if (isSessionApproved) return;
 
-    // Check if they recently navigated from the join flow
-    const approved = sessionStorage.getItem('knock_approved_' + pin) === 'true';
+    // Check if they are approved for this room
+    const approved = typeof window !== 'undefined' && (
+      sessionStorage.getItem('knock_approved_' + pin) === 'true' ||
+      localStorage.getItem('knock_approved_' + pin) === 'true'
+    );
+
     if (approved || currentUser.role === 'host') {
       setIsSessionApproved(true);
-      if (approved) {
-        // Delay removal so React StrictMode's double-invoke can also read the key
-        setTimeout(() => {
-          sessionStorage.removeItem('knock_approved_' + pin);
-        }, 1000);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('knock_approved_' + pin, 'true');
       }
       socketService.connect(pin, currentUser.name, currentUser.role);
     } else {
@@ -200,12 +201,25 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (currentUser?.role === 'host') {
       socketService.onMemberKnocking((req) => {
-        if (seenKnockIds.current.has(req.socketId)) return;
-        seenKnockIds.current.add(req.socketId);
-        setKnockingRequests((prev) => [...prev, req]);
-        setTimeout(() => {
-          addToast(`${req.name} wants to join!`, 'info');
-        }, 0);
+        setKnockingRequests((prev) => {
+          // Check if a request for the same student name or socketId already exists
+          const existingIndex = prev.findIndex(
+            (r) => r.socketId === req.socketId || r.name.trim().toLowerCase() === req.name.trim().toLowerCase()
+          );
+
+          if (existingIndex !== -1) {
+            // Update the socketId for this student in case they reconnected, but do NOT duplicate the card!
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], socketId: req.socketId };
+            return updated;
+          }
+
+          // Brand new student request -> notify host and show 1 request
+          setTimeout(() => {
+            addToast(`${req.name} wants to join!`, 'info');
+          }, 0);
+          return [...prev, req];
+        });
       });
     }
   }, [currentUser, addToast, pin]);
@@ -236,14 +250,12 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   }, [currentUser, pin, addToast, showConfirm]);
 
   const handleAcceptKnock = (targetSocketId: string) => {
-    seenKnockIds.current.delete(targetSocketId);
     socketService.acceptKnock(pin, targetSocketId);
     setKnockingRequests((prev) => prev.filter((r) => r.socketId !== targetSocketId));
     addToast('Request approved.', 'success');
   };
 
   const handleRejectKnock = (targetSocketId: string) => {
-    seenKnockIds.current.delete(targetSocketId);
     socketService.rejectKnock(pin, targetSocketId);
     setKnockingRequests((prev) => prev.filter((r) => r.socketId !== targetSocketId));
     addToast('Request declined.', 'warning');
@@ -626,7 +638,7 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         {/* Leftmost cell: Logo */}
         <div className="h-full hidden md:flex w-64 border-r border-white/[0.07] items-center px-4 select-none">
           <Link href="/" className="hover:opacity-85 transition-opacity flex items-center h-full relative z-10">
-            <Image src="/logo.png" alt="Lab Buddies Logo" width={140} height={40} className="h-14 w-auto object-contain scale-105 origin-left" />
+            <Image src="/logo.png?v=3" alt="Lab Buddies Logo" width={140} height={40} className="h-11 w-auto object-contain my-auto" />
           </Link>
         </div>
 

@@ -761,6 +761,15 @@ io.on('connection', (socket) => {
         }
       }
 
+      // Check if user is ALREADY an approved member in this room
+      const existingMember = await Member.findOne({ roomPin: pin, name });
+      if (existingMember) {
+        // User is already an accepted member of this room! Auto-admit them without notifying host again
+        socket.emit('knock-result', { status: 'accepted', autoJoin: true, pin });
+        console.log(`User ${name} is already an accepted member of room ${pin}. Auto-approved.`);
+        return;
+      }
+
       // Find the active host in this room
       const host = await Member.findOne({ roomPin: pin, role: 'host', isOnline: true });
       if (!host) {

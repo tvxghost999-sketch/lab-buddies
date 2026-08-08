@@ -8,7 +8,8 @@ import {
   Paperclip, Code, Send, File, Download, Copy, 
   Sparkles, Crown, Terminal, MessageSquare, MoreVertical,
   FileText, ShieldCheck, HelpCircle, Check, X,
-  FileArchive, FileCode, FileImage, Lock, Users, Activity, Smile, Eye, Maximize2, ExternalLink
+  FileArchive, FileCode, FileImage, Lock, Users, Activity, Smile, Eye, Maximize2, ExternalLink,
+  UploadCloud
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
@@ -80,6 +81,10 @@ export default function RoomDashboard() {
   const [isFileUploading, setIsFileUploading] = useState(false);
   const [isAdOpen, setIsAdOpen] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ fileName: string; fileUrl?: string; fileId?: string } | null>(null);
+
+  // Drag and drop file upload states
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounter = useRef(0);
 
   // WhatsApp-style file downloading & preview states
   const [downloadingIds, setDownloadingIds] = useState<Record<string, boolean>>({});
@@ -349,10 +354,11 @@ export default function RoomDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const uploadFile = async (file: File) => {
     if (!file) return;
 
+    // Switch composer mode to file so the user sees the attachment card
+    setComposerMode('file');
     addToast(`Uploading ${file.name}...`, 'info');
     setIsFileUploading(true);
     const formData = new FormData();
@@ -372,7 +378,7 @@ export default function RoomDashboard() {
         setSelectedFileType(data.fileType);
         setSelectedFileUrl(data.fileUrl);
         setSelectedFileCloudinaryId(data.cloudinaryPublicId || '');
-        addToast('File uploaded successfully!', 'success');
+        addToast('File uploaded! Click Send to share.', 'success');
       } else {
         const errData = await res.json().catch(() => ({}));
         if (errData.code === 'STORAGE_EXCEEDED') {
@@ -394,14 +400,74 @@ export default function RoomDashboard() {
       }
     } catch (err) {
       console.error(err);
-      addToast('Error uploading file.', 'error');
+      addToast('File upload failed due to network error.', 'error');
     } finally {
       setIsFileUploading(false);
-      if (e.target) {
-        e.target.value = '';
-      }
     }
   };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadFile(file);
+    }
+  };
+
+  // Global Drag and drop event listeners
+  useEffect(() => {
+    let counter = 0;
+
+    const onDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      counter++;
+      if (e.dataTransfer && e.dataTransfer.types) {
+        const types = Array.from(e.dataTransfer.types);
+        if (types.some(t => t.toLowerCase() === 'files' || t === 'Files')) {
+          setIsDraggingOver(true);
+        }
+      }
+    };
+
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+      setIsDraggingOver(true);
+    };
+
+    const onDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      counter--;
+      if (counter <= 0) {
+        counter = 0;
+        setIsDraggingOver(false);
+      }
+    };
+
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      counter = 0;
+      setIsDraggingOver(false);
+
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        uploadFile(file);
+      }
+    };
+
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -633,7 +699,26 @@ export default function RoomDashboard() {
   }, [members]);
 
   return (
-    <div className="flex flex-col h-full w-full md:h-[calc(100vh-6rem)] border-0 md:border border-white/[0.08] bg-[#0f0f10] md:rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+    <div className="relative flex flex-col h-full w-full md:h-[calc(100vh-6rem)] border-0 md:border border-white/[0.08] bg-[#0f0f10] md:rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+      {/* Global Drag and Drop File Overlay */}
+      {isDraggingOver && (
+        <div className="fixed inset-0 z-[9999] bg-[#050608]/85 backdrop-blur-md flex flex-col items-center justify-center p-6 select-none animate-in fade-in duration-150 pointer-events-none">
+          <div className="w-full max-w-lg p-10 border-3 border-dashed border-[#FFD600] rounded-3xl bg-[#FFD600]/10 flex flex-col items-center justify-center text-center gap-5 shadow-[0_0_80px_rgba(255,214,0,0.35)] scale-105 transition-transform duration-200">
+            <div className="w-24 h-24 rounded-3xl bg-[#FFD600]/20 border border-[#FFD600]/40 flex items-center justify-center text-[#FFD600] shadow-[0_0_40px_rgba(255,214,0,0.4)] animate-bounce">
+              <UploadCloud className="w-12 h-12" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-2xl font-black text-[#f4f4f5] tracking-tight">Drop Your File Here</h3>
+              <p className="text-sm text-[#a1a1aa] max-w-sm leading-relaxed">
+                Release to upload your file directly to the chat composer.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs uppercase font-bold text-[#FFD600] tracking-wider bg-[#FFD600]/15 px-5 py-2 rounded-full border border-[#FFD600]/30 shadow-sm">
+              All file formats supported
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes floatUp {
           0% {

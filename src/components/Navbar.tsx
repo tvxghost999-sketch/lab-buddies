@@ -43,12 +43,12 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
           <Image
-            src="/logo.png"
+            src="/logo.png?v=3"
             alt="Lab Buddies logo - anonymous student file sharing platform"
             width={150}
             height={48}
             priority
-            className="h-16 sm:h-18 w-auto object-contain scale-105 origin-left"
+            className="h-12 sm:h-14 w-auto object-contain my-auto"
           />
         </Link>
 
