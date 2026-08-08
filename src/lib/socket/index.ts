@@ -191,5 +191,17 @@ export const socketService = {
   },
   onStopStorageAd: (callback: () => void) => {
     bindListener('stop-storage-ad', callback);
+  },
+  sendLiveReaction: (pin: string, emoji: string, name: string) => {
+    socket?.emit('send-live-reaction', { pin, emoji, name });
+  },
+  onLiveReactionReceived: (callback: (data: { emoji: string; name: string }) => void) => {
+    bindListener('live-reaction-received', callback);
+  },
+  sendAttendanceHeartbeat: (pin: string, rollNumber: string, activeSeconds: number) => {
+    socket?.emit('send-attendance-heartbeat', { pin, rollNumber, activeSeconds });
+  },
+  onAttendanceHeartbeatReceived: (callback: (data: { rollNumber: string; activeSeconds: number }) => void) => {
+    bindListener('attendance-heartbeat-received', callback);
   }
 };

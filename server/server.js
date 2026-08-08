@@ -74,7 +74,8 @@ const UserSchema = new mongoose.Schema({
   state: { type: String, required: true },
   isVerified: { type: Boolean, default: false },
   otpCode: { type: String },
-  otpExpires: { type: Date }
+  otpExpires: { type: Date },
+  rollNumber: { type: String }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -311,7 +312,8 @@ app.post('/api/auth/login', async (req, res) => {
         email: user.email,
         country: user.country,
         state: user.state,
-        isVerified: user.isVerified
+        isVerified: user.isVerified,
+        rollNumber: user.rollNumber
       }
     });
   } catch (err) {
@@ -416,6 +418,39 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Verification failed.' });
+  }
+});
+
+// Update profile details (Name & Roll Number)
+app.put('/api/auth/update-profile', async (req, res) => {
+  try {
+    const { email, name, rollNumber } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (name) user.name = name;
+    if (rollNumber !== undefined) user.rollNumber = rollNumber;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        country: user.country,
+        state: user.state,
+        isVerified: user.isVerified,
+        rollNumber: user.rollNumber
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to update profile.' });
   }
 });
 
@@ -890,6 +925,24 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Relay Google Meet style live reactions to all connected clients in the room
+  socket.on('send-live-reaction', ({ pin, emoji, name }) => {
+    try {
+      io.to(pin).emit('live-reaction-received', { emoji, name });
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  // Relay real-time attendance heartbeat (active duration counters)
+  socket.on('send-attendance-heartbeat', ({ pin, rollNumber, activeSeconds }) => {
+    try {
+      io.to(pin).emit('attendance-heartbeat-received', { rollNumber, activeSeconds });
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
   // Host ad completed -> increment limit, save settings, update feed & activity log
   socket.on('host-ad-completed', async ({ pin }) => {
     try {
@@ -1240,9 +1293,9 @@ io.on('connection', (socket) => {
       if (member) {
         const pin = member.roomPin;
 
-        // If they were host, trigger auto-transfer
+        // If they were host, do not auto-transfer. They stay the host.
         if (member.role === 'host') {
-          await handleHostTransfer(pin, socket.id);
+          // Role is retained so they stay host on rejoin
         }
 
         member.isOnline = false;

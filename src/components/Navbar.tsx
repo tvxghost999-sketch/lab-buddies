@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Zap, Check } from 'lucide-react';
+import { Check, LogOut, User } from 'lucide-react';
 import Button from '@/components/ui/button';
 import { useRoomStore } from '@/store/roomStore';
 
@@ -16,9 +16,13 @@ export default function Navbar() {
   const addToast = useRoomStore((state) => state.addToast);
 
   const [isMounted, setIsMounted] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   const handleLogout = () => {
@@ -28,61 +32,78 @@ export default function Navbar() {
   };
 
   return (
-    <header className="border-b-[3px] border-neo-dark bg-white sticky top-0 z-40 selection:bg-neo-yellow selection:text-neo-dark">
+    <header
+      className={`sticky top-0 z-40 transition-all duration-300 ${
+        scrolled
+          ? 'bg-[#050608]/90 backdrop-blur-xl border-b border-white/[0.08]'
+          : 'bg-transparent border-b border-white/[0.05]'
+      }`}
+    >
       <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="hover:scale-95 transition-all flex items-center h-full relative z-10">
-          <Image 
-            src="/logo.png" 
-            alt="Lab Buddies logo - anonymous student file sharing platform" 
+        <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
+          <Image
+            src="/logo.png"
+            alt="Lab Buddies logo - anonymous student file sharing platform"
             width={150}
             height={48}
             priority
-            className="h-18 sm:h-22 w-auto object-contain max-h-none scale-105 origin-left" 
+            className="h-16 sm:h-18 w-auto object-contain scale-105 origin-left"
           />
         </Link>
 
         {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-8">
-          <Link href="/#features" className="text-neo-dark hover:text-neo-orange hover:underline hover:decoration-[3px] hover:underline-offset-4 hover:decoration-neo-orange font-archivo text-xs uppercase tracking-wider font-black transition-all">Features</Link>
-          <Link href="/#how-it-works" className="text-neo-dark hover:text-neo-orange hover:underline hover:decoration-[3px] hover:underline-offset-4 hover:decoration-neo-orange font-archivo text-xs uppercase tracking-wider font-black transition-all">How It Works</Link>
-          <Link href="/#about" className="text-neo-dark hover:text-neo-orange hover:underline hover:decoration-[3px] hover:underline-offset-4 hover:decoration-neo-orange font-archivo text-xs uppercase tracking-wider font-black transition-all">About Us</Link>
+        <nav className="hidden md:flex items-center gap-1">
+          {[
+            { href: '/#features', label: 'Features' },
+            { href: '/#how-it-works', label: 'How It Works' },
+            { href: '/#about', label: 'About' },
+          ].map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-[#a1a1aa] hover:text-[#f4f4f5] text-sm font-medium px-4 py-2 rounded-lg hover:bg-white/[0.06] transition-all"
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         {/* Auth Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isMounted && loggedInUser ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link href="/profile">
-                <div className="relative hover:scale-95 transition-all select-none">
-                  <div className="w-10 h-10 rounded-full border-[2.5px] border-neo-dark bg-neo-yellow flex items-center justify-center font-archivo text-base uppercase font-black shadow-[2px_2px_0px_0px_#111111] hover:shadow-[3px_3px_0px_0px_#111111] active:shadow-[0px_0px_0px_0px_#111111] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer">
+                <div className="relative hover:opacity-80 transition-opacity select-none cursor-pointer">
+                  <div className="w-9 h-9 rounded-full bg-[#FFD600]/15 border border-[#FFD600]/30 flex items-center justify-center text-[#FFD600] text-sm font-bold uppercase">
                     {loggedInUser.name ? loggedInUser.name[0] : 'U'}
                   </div>
                   {loggedInUser.isVerified && (
-                    <span className="absolute -bottom-1 -right-1 bg-neo-green text-neo-dark border-[1.5px] border-neo-dark rounded-full p-0.5 flex items-center justify-center scale-90 shadow-[1px_1px_0px_0px_#111111]">
-                      <Check className="w-2.5 h-2.5 stroke-[3.5px]" />
+                    <span className="absolute -bottom-0.5 -right-0.5 bg-[#22C55E] text-white rounded-full p-0.5 flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5 stroke-[3px]" />
                     </span>
                   )}
                 </div>
               </Link>
               {pathname !== '/' && (
-                <button 
-                  onClick={handleLogout} 
-                  className="hidden sm:block font-archivo text-xs uppercase tracking-wider text-neo-dark px-4 py-2 hover:bg-cream rounded-md transition-colors font-black"
+                <button
+                  onClick={handleLogout}
+                  className="hidden sm:flex items-center gap-1.5 text-[#71717a] hover:text-[#f4f4f5] text-sm px-3 py-1.5 rounded-lg hover:bg-white/[0.06] transition-all"
                 >
+                  <LogOut className="w-3.5 h-3.5" />
                   Logout
                 </button>
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link href="/login">
-                <button className="hidden sm:block font-archivo text-xs uppercase tracking-wider text-neo-dark px-4 py-2 hover:bg-cream rounded-md transition-colors font-black">
+                <button className="hidden sm:block text-[#a1a1aa] hover:text-[#f4f4f5] text-sm font-medium px-4 py-2 rounded-lg hover:bg-white/[0.06] transition-all">
                   Login
                 </button>
               </Link>
               <Link href="/signup">
-                <Button variant="orange" size="sm">
+                <Button variant="yellow" size="sm">
                   Start Free
                 </Button>
               </Link>

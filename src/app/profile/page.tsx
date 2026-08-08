@@ -10,6 +10,7 @@ import {
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
+import Image from 'next/image';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -44,10 +45,10 @@ export default function ProfilePage() {
 
   if (!isMounted || !loggedInUser) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center p-20 select-none bg-cream">
+      <div className="w-full min-h-screen flex items-center justify-center p-20 select-none bg-[#050608]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-[3.5px] border-neo-dark border-t-neo-yellow rounded-full animate-spin" />
-          <span className="text-xs font-black uppercase text-neo-dark tracking-wide">Syncing Session...</span>
+          <div className="w-10 h-10 border-2 border-white/20 border-t-[#FFD600] rounded-full animate-spin" />
+          <span className="text-xs text-[#a1a1aa] tracking-wide">Syncing Session...</span>
         </div>
       </div>
     );
@@ -85,14 +86,12 @@ export default function ProfilePage() {
   };
 
   const handleDigitChange = (val: string, index: number) => {
-    // Only allow single digit integers
     if (val && !/^\d$/.test(val)) return;
 
     const newDigits = [...otpDigits];
     newDigits[index] = val;
     setOtpDigits(newDigits);
 
-    // Focus next box if filled
     if (val && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -101,13 +100,11 @@ export default function ProfilePage() {
   const handleDigitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === 'Backspace') {
       if (!otpDigits[index] && index > 0) {
-        // Clear previous box and shift focus back
         const newDigits = [...otpDigits];
         newDigits[index - 1] = '';
         setOtpDigits(newDigits);
         inputRefs.current[index - 1]?.focus();
       } else if (otpDigits[index]) {
-        // Clear current box
         const newDigits = [...otpDigits];
         newDigits[index] = '';
         setOtpDigits(newDigits);
@@ -145,7 +142,6 @@ export default function ProfilePage() {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : `http://${window.location.hostname}:5000`);
       
-      // Delay for 1.5 seconds to show the slot machine shuffle animation
       const delayPromise = new Promise(resolve => setTimeout(resolve, 1500));
       const apiPromise = fetch(`${backendUrl}/api/auth/verify-otp`, {
         method: 'POST',
@@ -198,11 +194,11 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark">
+    <div className="flex flex-col min-h-screen bg-[#050608] text-[#f4f4f5]">
       {/* Header */}
-      <header className="border-b-[3px] border-neo-dark bg-white">
+      <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 bg-neo-orange text-neo-dark px-4 py-2 border-[3px] border-neo-dark rounded-[10px] shadow-neo-sm font-archivo font-black uppercase text-sm sm:text-base hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-neo transition-all">
+          <Link href="/" className="flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-[#f4f4f5] px-4 py-2 border border-white/[0.08] rounded-xl hover:bg-white/[0.06] transition-all">
             <Home className="w-4 h-4" />
             <span>Home</span>
           </Link>
@@ -217,26 +213,26 @@ export default function ProfilePage() {
       <main className="flex-1 max-w-md w-full mx-auto px-4 py-16 flex flex-col items-center justify-center">
         
         {/* Profile Details Card */}
-        <Card variant="white" className="w-full p-8 border-[4px] shadow-[6px_6px_0_0_#111111] flex flex-col gap-6">
-          <div className="flex items-center justify-between border-b-[2.5px] border-neo-dark pb-4 select-none">
+        <div className="w-full p-8 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.6)] flex flex-col gap-6">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-4 select-none">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-neo-yellow border-[2.5px] border-neo-dark rounded-full flex items-center justify-center text-lg font-archivo font-black">
+              <div className="w-12 h-12 bg-[#FFD600]/15 border border-[#FFD600]/25 rounded-full flex items-center justify-center text-lg font-bold text-[#FFD600]">
                 {loggedInUser.name[0].toUpperCase()}
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-sm font-black text-neo-dark">{loggedInUser.name}</span>
-                <span className="text-[10px] font-bold text-neo-dark/60">{loggedInUser.email}</span>
+                <span className="text-sm font-semibold text-[#f4f4f5]">{loggedInUser.name}</span>
+                <span className="text-[10px] text-[#71717a]">{loggedInUser.email}</span>
               </div>
             </div>
 
             {/* Verification Status Badge */}
             {loggedInUser.isVerified ? (
-              <div className="flex items-center gap-1 bg-neo-green text-neo-dark border-[2px] border-neo-dark text-[9px] font-black uppercase px-2.5 py-1 rounded-full shadow-neo-sm">
-                <ShieldCheck className="w-3.5 h-3.5 fill-neo-dark/10" />
+              <div className="flex items-center gap-1 bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/20 text-[10px] font-medium px-2.5 py-1 rounded-full">
+                <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Verified</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1 bg-neo-red text-white border-[2px] border-neo-dark text-[9px] font-black uppercase px-2.5 py-1 rounded-full shadow-neo-sm">
+              <div className="flex items-center gap-1 bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/20 text-[10px] font-medium px-2.5 py-1 rounded-full">
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>Not Verified</span>
               </div>
@@ -244,45 +240,45 @@ export default function ProfilePage() {
           </div>
 
           {/* Details Rows */}
-          <div className="flex flex-col gap-3 text-xs font-semibold text-neo-dark/80 text-left">
-            <div className="flex items-center justify-between p-2.5 border-[2px] border-neo-dark/5 bg-cream/30 rounded-md">
+          <div className="flex flex-col gap-3 text-xs text-[#a1a1aa] text-left">
+            <div className="flex items-center justify-between p-2.5 border border-white/[0.06] bg-white/[0.02] rounded-xl">
               <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-neo-dark/60" />
+                <Globe className="w-4 h-4 text-white/30" />
                 <span>Country</span>
               </div>
-              <span className="font-black text-neo-dark">{loggedInUser.country}</span>
+              <span className="font-semibold text-[#f4f4f5]">{loggedInUser.country}</span>
             </div>
             
-            <div className="flex items-center justify-between p-2.5 border-[2px] border-neo-dark/5 bg-cream/30 rounded-md">
+            <div className="flex items-center justify-between p-2.5 border border-white/[0.06] bg-white/[0.02] rounded-xl">
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-neo-dark/60" />
+                <MapPin className="w-4 h-4 text-white/30" />
                 <span>State</span>
               </div>
-              <span className="font-black text-neo-dark">{loggedInUser.state}</span>
+              <span className="font-semibold text-[#f4f4f5]">{loggedInUser.state}</span>
             </div>
           </div>
 
           {/* Verification Actions */}
           {!loggedInUser.isVerified && (
-            <div className="border-t-[2.5px] border-neo-dark/10 pt-4 flex flex-col gap-4">
+            <div className="border-t border-white/[0.06] pt-4 flex flex-col gap-4">
               
               {!otpSent ? (
                 <div className="flex flex-col gap-3">
-                  <p className="text-[11px] font-bold text-neo-dark/70 leading-relaxed text-left">
+                  <p className="text-xs text-[#71717a] leading-relaxed text-left">
                     Your profile is not verified. Click the button below to generate a 6-digit verification code sent to your email.
                   </p>
                   <Button 
                     variant="orange" 
                     size="md" 
                     onClick={handleSendOtp} 
-                    className="w-full border-[2px] font-archivo uppercase shadow-[2.5px_2.5px_0_0_#111111]"
+                    className="w-full gap-2 justify-center"
                     disabled={loading}
                   >
                     <Send className="w-4 h-4" />
                     <span>Verify Email via OTP</span>
                   </Button>
                   <Link href="/" className="text-center mt-2 flex justify-center">
-                    <span className="text-[10px] font-black uppercase text-neo-dark/50 hover:text-neo-orange hover:underline cursor-pointer transition-all">
+                    <span className="text-[10px] uppercase text-[#71717a] hover:text-[#FFD600] cursor-pointer transition-all">
                       Skip for Now
                     </span>
                   </Link>
@@ -297,24 +293,24 @@ export default function ProfilePage() {
                     }
                     .animate-shake {
                       animation: shake 0.25s ease-in-out;
-                      border-color: #FF5A5F !important;
+                      border-color: #EF4444 !important;
                     }
                     .bg-success-scale {
-                      background-color: #22C55E !important;
-                      color: #111111 !important;
-                      transform: scale(1.05);
-                      border-color: #111111 !important;
+                      background-color: rgba(34,197,94,0.15) !important;
+                      color: #22C55E !important;
+                      transform: scale(1.03);
+                      border-color: rgba(34,197,94,0.3) !important;
                     }
                     .bg-failed-scale {
-                      background-color: #FF5A5F !important;
-                      color: #ffffff !important;
-                      transform: scale(0.98);
-                      border-color: #111111 !important;
+                      background-color: rgba(239,68,68,0.15) !important;
+                      color: #EF4444 !important;
+                      transform: scale(0.97);
+                      border-color: rgba(239,68,68,0.3) !important;
                     }
                   `}</style>
                   
                   <div className="flex flex-col gap-1 w-full text-center">
-                    <label className="text-[10px] font-black uppercase text-neo-dark/80 tracking-wider">
+                    <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">
                       Enter 6-Digit OTP Code
                     </label>
                   </div>
@@ -333,11 +329,11 @@ export default function ProfilePage() {
 
                       let customClass = '';
                       if (verificationResult === 'success') {
-                        customClass = 'bg-success-scale text-neo-dark';
+                        customClass = 'bg-success-scale';
                       } else if (verificationResult === 'failed') {
                         customClass = 'animate-shake bg-failed-scale';
                       } else if (isVerifying) {
-                        customClass = 'bg-neo-yellow/20 border-neo-orange';
+                        customClass = 'bg-[#FFD600]/10 border-[#FF6A00]/50';
                       }
 
                       return (
@@ -349,7 +345,7 @@ export default function ProfilePage() {
                           onChange={(e) => handleDigitChange(e.target.value, idx)}
                           onKeyDown={(e) => handleDigitKeyDown(e, idx)}
                           onPaste={idx === 0 ? handleDigitPaste : undefined}
-                          className={`w-10 h-12 border-[3px] border-neo-dark rounded-[8px] font-archivo text-lg font-black text-center shadow-neo-sm focus:bg-neo-yellow/10 focus:shadow-neo transition-all outline-none uppercase select-all ${customClass}`}
+                          className={`w-10 h-12 border border-white/[0.1] bg-white/[0.03] rounded-xl font-mono text-lg font-bold text-center transition-all outline-none uppercase select-all ${customClass}`}
                           maxLength={1}
                           disabled={loading || isVerifying || verificationResult !== 'idle'}
                         />
@@ -361,23 +357,23 @@ export default function ProfilePage() {
                     type="submit" 
                     variant="yellow" 
                     size="md" 
-                    className="w-full border-[2px] shadow-[2.5px_2.5px_0_0_#111111] uppercase font-archivo mt-1"
+                    className="w-full justify-center shadow-[0_0_20px_rgba(255,214,0,0.15)]"
                     disabled={loading || isVerifying || verificationResult !== 'idle'}
                   >
                     <span>{isVerifying ? 'Verifying...' : 'Verify Code'}</span>
                   </Button>
 
-                  <div className="flex gap-3 items-center justify-center mt-2 text-[10px] font-black uppercase">
+                  <div className="flex gap-3 items-center justify-center mt-2 text-[10px] uppercase">
                     <button 
                       type="button" 
                       onClick={handleSendOtp} 
-                      className="text-neo-orange hover:underline"
+                      className="text-[#FF6A00] hover:underline"
                       disabled={loading || isVerifying}
                     >
                       Resend Code
                     </button>
-                    <span className="text-neo-dark/20">|</span>
-                    <Link href="/" className="text-neo-dark/50 hover:text-neo-orange hover:underline">
+                    <span className="text-white/10">|</span>
+                    <Link href="/" className="text-[#71717a] hover:text-[#FF6A00] hover:underline">
                       Skip for Now
                     </Link>
                   </div>
@@ -385,7 +381,7 @@ export default function ProfilePage() {
               )}
             </div>
           )}
-        </Card>
+        </div>
 
       </main>
     </div>

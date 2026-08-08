@@ -29,7 +29,6 @@ export default function SettingsPage() {
 
   const isHost = currentUser?.role === 'host';
 
-  // Form states initialized from Zustand
   const [roomName, setRoomName] = useState(activeRoom?.name || 'lab-row-1');
   const [maxMembers, setMaxMembers] = useState(activeRoom?.maxMembers || 20);
   const [autoDeleteTimer, setAutoDeleteTimer] = useState(activeRoom?.autoDeleteTimer || '2 Hours');
@@ -92,15 +91,15 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 md:p-0">
       
       {/* Page Title */}
-      <div className="flex flex-col gap-1 select-none">
-        <h1 className="font-archivo text-2xl uppercase text-neo-dark flex items-center gap-2">
-          <Settings className="w-6 h-6 text-neo-orange" />
+      <div className="flex flex-col gap-1 select-none text-left">
+        <h1 className="text-xl sm:text-2xl font-bold text-[#f4f4f5] flex items-center gap-2">
+          <Settings className="w-6 h-6 text-[#FF6A00]" />
           Room Settings
         </h1>
-        <p className="text-xs font-bold text-neo-dark/70">
+        <p className="text-xs text-[#71717a]">
           Manage configuration parameters, control features, and secure your room.
         </p>
       </div>
@@ -110,39 +109,39 @@ export default function SettingsPage() {
         
         {/* Left Side: General Settings Form */}
         <div className="lg:col-span-7">
-          <Card variant="white" className="p-6">
+          <div className="glass-card p-6">
             <form onSubmit={handleSave} className="flex flex-col gap-5">
               
               {!isHost && (
-                <div className="flex items-center gap-2.5 p-3.5 border-[2.5px] border-neo-dark bg-neo-orange/25 text-neo-dark rounded-[10px] text-xs font-bold shadow-neo-sm mb-2 select-none">
-                  <ShieldAlert className="w-5 h-5 text-neo-orange flex-shrink-0" />
+                <div className="flex items-center gap-2.5 p-3.5 border border-[#FF6A00]/20 bg-[#FF6A00]/10 text-[#FF6A00] rounded-xl text-xs font-medium mb-2 select-none text-left">
+                  <ShieldAlert className="w-5 h-5 flex-shrink-0" />
                   <span>
                     <strong>Read-Only Mode:</strong> Only the room host can modify parameters, adjust toggles, or access danger actions.
                   </span>
                 </div>
               )}
 
-              <div className="border-b-[2px] border-neo-dark pb-3 mb-1 select-none">
-                <span className="font-archivo text-xs uppercase tracking-wide text-neo-dark font-black">
+              <div className="border-b border-white/[0.06] pb-3 mb-1 select-none text-left">
+                <span className="text-xs uppercase tracking-wider text-[#a1a1aa] font-medium">
                   General Details
                 </span>
               </div>
 
               {/* Room Name Input */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-black uppercase text-neo-dark">Room Name</label>
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Room Name</label>
                 <input
                   type="text"
                   disabled={!isHost}
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  className="neo-input text-xs sm:text-sm font-semibold disabled:bg-cream/40 disabled:cursor-not-allowed"
+                  className="neo-input text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 />
-                <span className="text-[10px] font-semibold text-neo-dark/50">This name is visible to all members.</span>
+                <span className="text-[10px] text-[#52525b]">This name is visible to all members.</span>
               </div>
 
               {/* Max Members and Timer selectors */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                 <div className="flex flex-col gap-1">
                   <Select
                     label="Max Members"
@@ -151,7 +150,7 @@ export default function SettingsPage() {
                     value={maxMembers}
                     onChange={(e) => setMaxMembers(Number(e.target.value))}
                   />
-                  <span className="text-[9.5px] font-semibold text-neo-dark/50">Limit member capacity.</span>
+                  <span className="text-[10px] text-[#52525b]">Limit member capacity.</span>
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -162,18 +161,18 @@ export default function SettingsPage() {
                     value={autoDeleteTimer}
                     onChange={(e) => setAutoDeleteTimer(e.target.value)}
                   />
-                  <span className="text-[9.5px] font-semibold text-neo-dark/50">Countdown for clean up.</span>
+                  <span className="text-[10px] text-[#52525b]">Countdown for clean up.</span>
                 </div>
               </div>
 
-              <div className="border-b-[2px] border-neo-dark pb-3 mt-4 mb-1 select-none">
-                <span className="font-archivo text-xs uppercase tracking-wide text-neo-dark font-black">
-                  Access & Toggles
+              <div className="border-b border-white/[0.06] pb-3 mt-4 mb-1 select-none text-left">
+                <span className="text-xs uppercase tracking-wider text-[#a1a1aa] font-medium">
+                  Access &amp; Toggles
                 </span>
               </div>
 
               {/* Toggles */}
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 text-left">
                 <Switch
                   label="Room Visibility (Anyone with PIN)"
                   disabled={!isHost}
@@ -236,40 +235,40 @@ export default function SettingsPage() {
                   type="submit" 
                   variant="yellow" 
                   size="md" 
-                  className="w-full gap-2 border-[3px] mt-4 font-archivo text-xs uppercase shadow-[3px_3px_0_0_#111111] hover:shadow-[5px_5px_0_0_#111111]"
+                  className="w-full gap-2 mt-4 uppercase text-xs shadow-[0_0_20px_rgba(255,214,0,0.15)] justify-center"
                 >
                   <Save className="w-4 h-4" />
                   <span>Save Changes</span>
                 </Button>
               )}
             </form>
-          </Card>
+          </div>
         </div>
 
         {/* Right Side: Danger Zone & Info Cards */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
+        <div className="lg:col-span-5 flex flex-col gap-6 select-none">
           
           {/* Card 1: Danger Zone */}
           {isHost && (
-            <Card variant="white" className="p-4 flex flex-col gap-4 border-[3px]">
-              <div className="flex items-center gap-1.5 border-b-[2px] border-neo-dark pb-2 font-archivo text-xs uppercase tracking-wide text-neo-red select-none">
-                <ShieldAlert className="w-4 h-4 text-neo-red" />
+            <div className="glass-card p-4 flex flex-col gap-4">
+              <div className="flex items-center gap-1.5 border-b border-white/[0.06] pb-2 text-xs uppercase tracking-wider text-[#EF4444] font-medium text-left">
+                <ShieldAlert className="w-4 h-4" />
                 <span>Danger Zone</span>
               </div>
 
-              <div className="flex flex-col gap-4 text-xs font-semibold text-neo-dark">
+              <div className="flex flex-col gap-4 text-xs text-[#a1a1aa] text-left">
                 {/* Clear Feed Item */}
-                <div className="flex items-center justify-between gap-4 border-b border-neo-dark/10 pb-3">
+                <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] pb-3">
                   <div className="flex flex-col">
-                    <span className="font-black">Clear Feed</span>
-                    <p className="text-[10px] text-neo-dark/65 leading-tight mt-0.5">
+                    <span className="font-semibold text-[#f4f4f5]">Clear Feed</span>
+                    <p className="text-[10px] text-[#71717a] leading-tight mt-0.5">
                       Remove all messages and files from the live feed.
                     </p>
                   </div>
                   <Button 
                     variant="white" 
                     size="sm" 
-                    className="border-[2px] px-3 py-1.5 text-[10.5px] font-archivo font-black shadow-[2px_2px_0_0_#111111]"
+                    className="text-xs"
                     onClick={handleClearFeed}
                   >
                     Clear
@@ -279,57 +278,57 @@ export default function SettingsPage() {
                 {/* Delete Room Item */}
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex flex-col">
-                    <span className="font-black text-neo-red">Delete Room</span>
-                    <p className="text-[10px] text-neo-dark/65 leading-tight mt-0.5">
+                    <span className="font-semibold text-[#EF4444]">Delete Room</span>
+                    <p className="text-[10px] text-[#71717a] leading-tight mt-0.5">
                       This action cannot be undone. All data will be scrubbed.
                     </p>
                   </div>
                   <Button 
                     variant="red" 
                     size="sm" 
-                    className="border-[2px] px-3 py-1.5 text-[10.5px] font-archivo shadow-[2px_2px_0_0_#111111]"
+                    className="text-xs"
                     onClick={handleDeleteRoom}
                   >
                     Delete Room
                   </Button>
                 </div>
               </div>
-            </Card>
+            </div>
           )}
 
           {/* Card 2: Room Information */}
-          <Card variant="white" className="p-4 flex flex-col gap-4 border-[3px]">
-            <div className="flex items-center gap-1.5 border-b-[2px] border-neo-dark pb-2 font-archivo text-xs uppercase tracking-wide text-neo-dark select-none">
-              <Info className="w-4 h-4 text-neo-orange" />
+          <div className="glass-card p-4 flex flex-col gap-4 text-left">
+            <div className="flex items-center gap-1.5 border-b border-white/[0.06] pb-2 text-xs uppercase tracking-wider text-[#f4f4f5] font-medium">
+              <Info className="w-4 h-4 text-[#FF6A00]" />
               <span>Room Information</span>
             </div>
 
-            <div className="flex flex-col gap-2 text-xs font-bold text-neo-dark/85">
-              <div className="flex justify-between items-center py-1.5 border-b border-neo-dark/10">
-                <span className="text-neo-dark/50">Room PIN</span>
-                <span className="font-black font-archivo">#{activeRoom?.pin || pin}</span>
+            <div className="flex flex-col gap-2 text-xs text-[#a1a1aa]">
+              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.06]">
+                <span className="text-[#71717a]">Room PIN</span>
+                <span className="font-mono font-bold text-[#f4f4f5]">#{activeRoom?.pin || pin}</span>
               </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-neo-dark/10">
-                <span className="text-neo-dark/50">Created By</span>
-                <span>{activeRoom?.createdBy || 'Aman (Host)'}</span>
+              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.06]">
+                <span className="text-[#71717a]">Created By</span>
+                <span className="text-[#f4f4f5]">{activeRoom?.createdBy || 'Aman (Host)'}</span>
               </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-neo-dark/10">
-                <span className="text-neo-dark/50">Created At</span>
-                <span>{activeRoom?.createdAt || 'May 18, 2025, 11:40 AM'}</span>
+              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.06]">
+                <span className="text-[#71717a]">Created At</span>
+                <span className="text-[#f4f4f5]">{activeRoom?.createdAt || 'May 18, 2025, 11:40 AM'}</span>
               </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-neo-dark/10">
-                <span className="text-neo-dark/50">Members</span>
-                <span>{members.length} / {activeRoom?.maxMembers || 20}</span>
+              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.06]">
+                <span className="text-[#71717a]">Members</span>
+                <span className="text-[#f4f4f5]">{members.length} / {activeRoom?.maxMembers || 20}</span>
               </div>
               <div className="flex justify-between items-center py-1.5">
-                <span className="text-neo-dark/50">Room Status</span>
-                <span className="flex items-center gap-1.5 font-black uppercase text-[10.5px]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-neo-green animate-pulse" />
+                <span className="text-[#71717a]">Room Status</span>
+                <span className="flex items-center gap-1.5 text-[#22C55E] uppercase text-[10px] font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
                   Active
                 </span>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
 
       </div>

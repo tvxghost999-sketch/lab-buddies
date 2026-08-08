@@ -68,27 +68,27 @@ export default function NotesPage() {
     return 0;
   });
 
-  // Sticky color mapping
-  const colorBgClasses = {
-    yellow: 'bg-[#FFF2B2] text-neo-dark border-neo-dark', // Pastelly yellow
-    blue: 'bg-[#BFE3FF] text-neo-dark border-neo-dark',   // Pastelly blue
-    green: 'bg-[#C1F8C2] text-neo-dark border-neo-dark',  // Pastelly green
-    purple: 'bg-[#E3CFFF] text-neo-dark border-neo-dark', // Pastelly purple
-    red: 'bg-[#FFC9C9] text-neo-dark border-neo-dark',    // Pastelly red
-    orange: 'bg-[#FFE2C9] text-neo-dark border-neo-dark', // Pastelly orange
+  // Sticky color mapping for modern dark theme cards with glowy colored borders
+  const colorBorders = {
+    yellow: 'border-[#FFD600]/40 bg-[#FFD600]/5 text-[#FFD600] shadow-[0_4px_20px_rgba(255,214,0,0.06)]',
+    blue: 'border-[#4F7CFF]/40 bg-[#4F7CFF]/5 text-[#4F7CFF] shadow-[0_4px_20px_rgba(79,124,255,0.06)]',
+    green: 'border-[#22C55E]/40 bg-[#22C55E]/5 text-[#22C55E] shadow-[0_4px_20px_rgba(34,197,94,0.06)]',
+    purple: 'border-[#8B5CF6]/40 bg-[#8B5CF6]/5 text-[#8B5CF6] shadow-[0_4px_20px_rgba(139,92,246,0.06)]',
+    red: 'border-[#EF4444]/40 bg-[#EF4444]/5 text-[#EF4444] shadow-[0_4px_20px_rgba(239,68,68,0.06)]',
+    orange: 'border-[#FF6A00]/40 bg-[#FF6A00]/5 text-[#FF6A00] shadow-[0_4px_20px_rgba(255,106,0,0.06)]',
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 md:p-0">
       
       {/* Title bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
         <div className="flex flex-col gap-1">
-          <h1 className="font-archivo text-2xl uppercase text-neo-dark flex items-center gap-2">
-            <StickyNote className="w-6 h-6 text-neo-orange" />
+          <h1 className="text-xl sm:text-2xl font-bold text-[#f4f4f5] flex items-center gap-2">
+            <StickyNote className="w-6 h-6 text-[#FF6A00]" />
             Shared Notes
           </h1>
-          <p className="text-xs font-bold text-neo-dark/70">
+          <p className="text-xs text-[#71717a]">
             Write down equations, instructions, reminders, or general points. Pinned notes float to the top.
           </p>
         </div>
@@ -99,90 +99,91 @@ export default function NotesPage() {
             variant="yellow" 
             size="sm" 
             onClick={() => setIsModalOpen(true)}
-            className="gap-1 border-[2.5px] shadow-[2px_2px_0_0_#111111]"
+            className="gap-1 shadow-[0_0_15px_rgba(255,214,0,0.15)]"
           >
             <Plus className="w-4 h-4" />
             <span className="text-xs">New Note</span>
           </Button>
-          <div className="border-[2.5px] border-neo-dark rounded-[8px] bg-white px-3 py-1 text-xs font-black text-neo-dark shadow-neo-sm flex items-center">
+          <div className="border border-white/[0.08] bg-white/[0.03] rounded-xl px-3.5 py-1.5 text-xs text-[#f4f4f5] select-none flex items-center">
             Total Notes: {notes.length}
           </div>
         </div>
       </div>
 
-      {/* Grid or List list switches */}
+      {/* Grid or List switches */}
       {notes.length > 0 && (
-        <Card variant="white" className="p-3 flex justify-end select-none shadow-neo-sm">
-          <div className="flex border-[2.5px] border-neo-dark rounded-md bg-white overflow-hidden">
+        <div className="p-3 flex justify-end select-none bg-[#0f0f10] border border-white/[0.08] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
+          <div className="flex border border-white/[0.08] rounded-xl bg-white/[0.02] overflow-hidden">
             <button 
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 border-r-[2.5px] border-neo-dark hover:bg-cream transition-colors ${viewMode === 'grid' ? 'bg-neo-yellow' : ''}`}
+              className={`p-2 hover:bg-white/[0.06] transition-colors ${viewMode === 'grid' ? 'text-[#FFD600] bg-white/[0.04]' : 'text-[#a1a1aa]'}`}
             >
-              <Grid className="w-4 h-4 text-neo-dark" />
+              <Grid className="w-4 h-4" />
             </button>
             <button 
               onClick={() => setViewMode('list')}
-              className={`p-1.5 hover:bg-cream transition-colors ${viewMode === 'list' ? 'bg-neo-yellow' : ''}`}
+              className={`p-2 hover:bg-white/[0.06] transition-colors ${viewMode === 'list' ? 'text-[#FFD600] bg-white/[0.04]' : 'text-[#a1a1aa]'}`}
             >
-              <List className="w-4 h-4 text-neo-dark" />
+              <List className="w-4 h-4" />
             </button>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Notes container */}
       {sortedNotes.length === 0 ? (
-        <Card variant="white" className="p-12 text-center flex flex-col items-center justify-center gap-4 select-none">
-          <div className="w-16 h-16 rounded-full border-[3px] border-neo-dark bg-cream flex items-center justify-center text-2xl shadow-neo-sm">
+        <div className="p-12 text-center flex flex-col items-center justify-center gap-4 select-none border border-white/[0.08] rounded-2xl bg-[#0f0f10]">
+          <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/[0.08] flex items-center justify-center text-2xl shadow-lg">
             📝
           </div>
-          <h3 className="font-archivo text-sm uppercase text-neo-dark">No notes shared yet</h3>
-          <p className="text-xs font-bold text-neo-dark/60 max-w-xs">
+          <h3 className="text-sm font-semibold text-[#f4f4f5]">No notes shared yet</h3>
+          <p className="text-xs text-[#71717a] max-w-xs">
             Create ephemeral sticky notes to capture lists, assignments, tasks, or links.
           </p>
           <Button variant="yellow" size="sm" onClick={() => setIsModalOpen(true)}>
             Create First Note
           </Button>
-        </Card>
+        </div>
       ) : viewMode === 'grid' ? (
         /* Sticky Notes Grid */
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {sortedNotes.map((note) => (
             <div 
               key={note._id || note.id}
-              className={`border-[3px] border-neo-dark rounded-[16px] p-5 shadow-neo-sm hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-neo transition-all flex flex-col justify-between min-h-[220px] ${colorBgClasses[note.color]}`}
+              className={`border rounded-2xl p-5 transition-all flex flex-col justify-between min-h-[220px] ${colorBorders[note.color]}`}
             >
               <div>
                 {/* Note Header */}
-                <div className="flex justify-between items-start gap-4 mb-3 pb-2 border-b border-neo-dark/15 select-none">
-                  <h3 className="font-archivo text-xs uppercase text-neo-dark tracking-wide truncate">
+                <div className="flex justify-between items-start gap-4 mb-3 pb-2 border-b border-white/[0.06] select-none">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider truncate">
                     {note.title}
                   </h3>
                   <button 
                     onClick={() => togglePinNote(note._id || note.id)}
-                    className={`p-1 rounded hover:bg-black/5 transition-colors ${note.pinned ? 'text-neo-orange' : 'text-neo-dark/30'}`}
+                    className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                    style={{ color: note.pinned ? '#FF6A00' : '#71717a' }}
                     title={note.pinned ? 'Unpin note' : 'Pin note to top'}
                   >
-                    <Pin className={`w-3.5 h-3.5 ${note.pinned ? 'fill-neo-orange' : ''}`} />
+                    <Pin className={`w-3.5 h-3.5 ${note.pinned ? 'fill-[#FF6A00]/20' : ''}`} />
                   </button>
                 </div>
 
                 {/* Content */}
-                <p className="text-xs font-semibold whitespace-pre-wrap leading-relaxed text-neo-dark/95 mb-4">
+                <p className="text-xs leading-relaxed text-[#a1a1aa] whitespace-pre-wrap mb-4">
                   {note.content}
                 </p>
               </div>
 
               {/* Note Footer */}
-              <div className="flex items-center justify-between border-t border-neo-dark/15 pt-3 text-[9.5px] font-bold select-none text-neo-dark/50">
+              <div className="flex items-center justify-between border-t border-white/[0.06] pt-3 text-[10px] select-none text-[#71717a]">
                 <span>By {note.createdBy} ({note.createdAt})</span>
                 <div className="flex items-center gap-1.5">
                   <button 
                     onClick={() => handleCopyNote(`${note.title}\n\n${note.content}`)}
-                    className="p-1 border-[1.5px] border-neo-dark bg-white rounded hover:bg-cream transition-all hover:translate-y-[-0.5px] shadow-[1.5px_1.5px_0_0_#111111]"
+                    className="p-1.5 border border-white/[0.1] bg-white/5 rounded-lg text-[#a1a1aa] hover:text-[#f4f4f5] transition-all cursor-pointer"
                     title="Copy note content"
                   >
-                    <Copy className="w-3 h-3 text-neo-dark" />
+                    <Copy className="w-3.5 h-3.5" />
                   </button>
                   <button 
                     onClick={() => {
@@ -192,10 +193,10 @@ export default function NotesPage() {
                         () => deleteNote(note._id || note.id)
                       );
                     }}
-                    className="p-1 border-[1.5px] border-neo-dark bg-white rounded text-neo-red hover:bg-neo-red/10 transition-all hover:translate-y-[-0.5px] shadow-[1.5px_1.5px_0_0_#111111]"
+                    className="p-1.5 border border-[#EF4444]/20 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] rounded-lg transition-all cursor-pointer"
                     title="Delete note"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -204,19 +205,26 @@ export default function NotesPage() {
         </div>
       ) : (
         /* List mode */
-        <Card variant="white" className="overflow-hidden">
-          <div className="divide-y-[2.5px] divide-neo-dark select-none">
+        <div className="border border-white/[0.08] bg-[#0f0f10] rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.3)]">
+          <div className="divide-y divide-white/[0.06] select-none">
             {sortedNotes.map((note) => (
-              <div key={note._id || note.id} className="flex items-center justify-between p-4 hover:bg-cream/20 transition-colors gap-4">
+              <div key={note._id || note.id} className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors gap-4">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-8 h-8 rounded border-[2px] border-neo-dark flex items-center justify-center text-lg ${colorBgClasses[note.color]}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg ${
+                    note.color === 'yellow' ? 'bg-[#FFD600]/10 text-[#FFD600]' :
+                    note.color === 'blue' ? 'bg-[#4F7CFF]/10 text-[#4F7CFF]' :
+                    note.color === 'green' ? 'bg-[#22C55E]/10 text-[#22C55E]' :
+                    note.color === 'purple' ? 'bg-[#8B5CF6]/10 text-[#8B5CF6]' :
+                    note.color === 'red' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+                    'bg-[#FF6A00]/10 text-[#FF6A00]'
+                  }`}>
                     📌
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-black text-neo-dark flex items-center gap-2">
-                      {note.title} {note.pinned && <Pin className="w-3 h-3 fill-neo-orange text-neo-orange" />}
+                    <span className="text-xs font-semibold text-[#f4f4f5] flex items-center gap-2">
+                      {note.title} {note.pinned && <Pin className="w-3 h-3 fill-[#FF6A00]/20 text-[#FF6A00]" />}
                     </span>
-                    <span className="text-[10px] font-bold text-neo-dark/50 truncate max-w-md">
+                    <span className="text-[10px] text-[#71717a] truncate max-w-md">
                       {note.content.replace(/\n/g, ' ')}
                     </span>
                   </div>
@@ -225,7 +233,7 @@ export default function NotesPage() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleCopyNote(`${note.title}\n\n${note.content}`)}
-                    className="p-1.5 border-[2px] border-neo-dark bg-white rounded shadow-[2px_2px_0_0_#111111] text-[10px] font-archivo font-black uppercase"
+                    className="px-3 py-1.5 border border-white/[0.1] bg-white/5 hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] rounded-xl text-xs font-medium text-[#a1a1aa] transition-all cursor-pointer"
                   >
                     Copy
                   </button>
@@ -237,7 +245,7 @@ export default function NotesPage() {
                         () => deleteNote(note._id || note.id)
                       );
                     }}
-                    className="p-1.5 border-[2px] border-neo-dark bg-white text-neo-red rounded shadow-[2px_2px_0_0_#111111] text-[10px] font-archivo font-black uppercase"
+                    className="px-3 py-1.5 border border-[#EF4444]/20 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] rounded-xl text-xs font-medium transition-all cursor-pointer"
                   >
                     Delete
                   </button>
@@ -245,7 +253,7 @@ export default function NotesPage() {
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Note Creator Modal Form */}
@@ -253,53 +261,53 @@ export default function NotesPage() {
         <form onSubmit={handleSubmitNote} className="flex flex-col gap-4 text-left">
           
           {/* Title */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-black uppercase text-neo-dark">Note Title</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Note Title</label>
             <input
               type="text"
               required
               placeholder="e.g. Equations Sheet, Assignment Checklist"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              className="neo-input w-full text-xs sm:text-sm font-semibold"
+              className="neo-input w-full text-sm font-semibold"
             />
           </div>
 
           {/* Content */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-black uppercase text-neo-dark">Note Content</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Note Content</label>
             <textarea
               required
               rows={4}
               placeholder="Write down notes, copy links, code instructions, list items etc."
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              className="w-full border-[3px] border-neo-dark rounded-lg p-3 bg-white font-sans text-xs sm:text-sm font-semibold text-neo-dark focus:outline-none focus:shadow-neo-sm"
+              className="w-full border border-white/[0.08] rounded-xl p-3 bg-white/[0.03] text-sm text-[#f4f4f5] focus:outline-none focus:border-[#FFD600]/40"
             />
           </div>
 
           {/* Color radio selector */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-black uppercase text-neo-dark">Sticky Card Color</label>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Sticky Card Color</label>
             <div className="flex gap-3">
               {(['yellow', 'blue', 'green', 'purple', 'red', 'orange'] as const).map((color) => {
                 const mapColors = {
-                  yellow: '#FFF2B2',
-                  blue: '#BFE3FF',
-                  green: '#C1F8C2',
-                  purple: '#E3CFFF',
-                  red: '#FFC9C9',
-                  orange: '#FFE2C9'
+                  yellow: '#FFD600',
+                  blue: '#4F7CFF',
+                  green: '#22C55E',
+                  purple: '#8B5CF6',
+                  red: '#EF4444',
+                  orange: '#FF6A00'
                 };
                 return (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setNewColor(color)}
-                    className="w-8 h-8 rounded-full border-[2.5px] border-neo-dark flex items-center justify-center shadow-neo-sm transition-transform active:scale-95"
-                    style={{ backgroundColor: mapColors[color] }}
+                    className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer"
+                    style={{ backgroundColor: `${mapColors[color]}20`, borderColor: mapColors[color], color: mapColors[color] }}
                   >
-                    {newColor === color && <Check className="w-4 h-4 text-neo-dark stroke-[3px]" />}
+                    {newColor === color && <Check className="w-4 h-4 stroke-[3px]" />}
                   </button>
                 );
               })}
@@ -307,12 +315,12 @@ export default function NotesPage() {
           </div>
 
           {/* Pin Toggle */}
-          <label className="flex items-center gap-2.5 cursor-pointer mt-1 select-none font-bold text-xs">
+          <label className="flex items-center gap-2.5 cursor-pointer mt-1 select-none text-xs text-[#a1a1aa]">
             <input
               type="checkbox"
               checked={newPinned}
               onChange={(e) => setNewPinned(e.target.checked)}
-              className="w-4 h-4 border-[2px] border-neo-dark rounded bg-white text-neo-yellow focus:ring-0 cursor-pointer"
+              className="w-4 h-4 border border-white/[0.1] rounded bg-white/5 text-[#FFD600] focus:ring-0 cursor-pointer"
             />
             <span>Pin note to the top of the grid</span>
           </label>
@@ -322,7 +330,7 @@ export default function NotesPage() {
             type="submit" 
             variant="yellow" 
             size="md" 
-            className="w-full gap-2 mt-2 font-archivo uppercase text-xs shadow-[3px_3px_0_0_#111111]"
+            className="w-full gap-2 mt-2 uppercase text-xs shadow-[0_0_20px_rgba(255,214,0,0.15)] justify-center"
           >
             <Plus className="w-4 h-4" />
             <span>Create Sticky Note</span>

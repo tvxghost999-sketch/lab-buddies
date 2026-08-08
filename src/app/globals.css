@@ -1,7 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cream: #FFF9F1;
+  /* Dark Theme Colors */
+  --color-background: #050608;
+  --color-foreground: #f4f4f5;
+  --color-muted: #0b0b0c;
+  --color-muted-foreground: #71717a;
+  --color-card: #0f0f10;
+  --color-card-hover: #141415;
+  --color-border: rgba(255,255,255,0.1);
+  --color-border-subtle: rgba(255,255,255,0.06);
+
+  /* Brand Accent */
+  --color-accent: #FFD600;
+  --color-accent-hover: #FFC000;
+  --color-accent-muted: rgba(255,214,0,0.12);
+
+  /* Semantic Colors */
   --color-neo-yellow: #FFD600;
   --color-neo-orange: #FF6A00;
   --color-neo-blue: #4F7CFF;
@@ -9,22 +24,21 @@
   --color-neo-purple: #8B5CF6;
   --color-neo-red: #EF4444;
   --color-neo-dark: #111111;
+  --color-cream: #FFF9F1;
 
-  --font-archivo: var(--font-archivo-black), sans-serif;
-  --font-sans: var(--font-inter), sans-serif;
-
-  --shadow-neo: 6px 6px 0px 0px #111111;
-  --shadow-neo-sm: 4px 4px 0px 0px #111111;
-  --shadow-neo-lg: 8px 8px 0px 0px #111111;
-  
-  --shadow-neo-btn: 4px 4px 0px 0px #111111;
-  --shadow-neo-btn-hover: 6px 6px 0px 0px #111111;
-  --shadow-neo-btn-active: 1px 1px 0px 0px #111111;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', monospace;
+  --font-display: var(--font-inter), system-ui, sans-serif;
 }
 
 :root {
-  --background: #FFF9F1;
-  --foreground: #111111;
+  --background: #050608;
+  --foreground: #f4f4f5;
+  color-scheme: dark;
+}
+
+* {
+  border-color: rgba(255,255,255,0.1);
 }
 
 body {
@@ -33,81 +47,123 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Custom scrollbars matching the retro neo-brutalist styling */
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: #FFF9F1;
-  border-left: 3px solid #111111;
-}
-
+/* ─── Scrollbars ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0b0b0c; }
 ::-webkit-scrollbar-thumb {
-  background-color: #FFD600;
-  border-radius: 0px;
-  border: 3px solid #111111;
+  background: rgba(255,214,0,0.35);
+  border-radius: 999px;
 }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,214,0,0.6); }
 
-/* Common Neo Brutalism utilities */
-.neo-border {
-  border: 3px solid #111111;
-}
-
-.neo-card {
-  background-color: #ffffff;
-  border: 3px solid #111111;
+/* ─── Glass card utility ─── */
+.glass-card {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 16px;
-  box-shadow: 6px 6px 0px 0px #111111;
 }
 
+.glass-card-hover {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  transition: all 0.2s ease;
+}
+.glass-card-hover:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,214,0,0.2);
+}
+
+/* ─── Glow border card (Vengeance UI style) ─── */
+.glow-card {
+  position: relative;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.glow-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,214,0,0.15), transparent 50%, rgba(79,124,255,0.1));
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.glow-card:hover::before { opacity: 1; }
+
+/* ─── Neo button (dark mode) ─── */
 .neo-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid #111111;
   border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-family: var(--font-archivo);
-  text-transform: uppercase;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-  box-shadow: 4px 4px 0px 0px #111111;
-  transition: all 0.1s ease;
-  cursor: pointer;
-}
-
-.neo-btn:hover:not(:disabled) {
-  transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px 0px #111111;
-}
-
-.neo-btn:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0px 0px #111111;
-}
-
-.neo-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.neo-input {
-  border: 3px solid #111111;
-  border-radius: 8px;
-  background-color: #ffffff;
-  color: #111111;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding: 0.65rem 1.4rem;
   font-weight: 600;
-  outline: none;
-  transition: all 0.1s ease;
+  letter-spacing: 0.01em;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  font-size: 0.875rem;
 }
 
+/* ─── Input (dark mode) ─── */
+.neo-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: #f4f4f5;
+  padding: 0.65rem 1rem;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+.neo-input::placeholder { color: rgba(255,255,255,0.3); }
 .neo-input:focus {
-  background-color: #ffffff;
-  box-shadow: 4px 4px 0px 0px #111111;
+  border-color: rgba(255,214,0,0.5);
+  background: rgba(255,255,255,0.07);
+  box-shadow: 0 0 0 3px rgba(255,214,0,0.08);
+}
+.neo-input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── Neo card (dark mode) ─── */
+.neo-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+}
+
+/* ─── Neo border ─── */
+.neo-border {
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ─── Gradient text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #FFD600 0%, #FF6A00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-cool {
+  background: linear-gradient(135deg, #f4f4f5 0%, rgba(244,244,245,0.6) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Accent glow ─── */
+.accent-glow {
+  box-shadow: 0 0 20px rgba(255,214,0,0.2);
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(255,214,0,0.25);
+  color: #f4f4f5;
 }

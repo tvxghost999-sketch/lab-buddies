@@ -3,7 +3,7 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'yellow' | 'orange' | 'blue' | 'green' | 'purple' | 'red' | 'white' | 'dark';
+  variant?: 'yellow' | 'orange' | 'blue' | 'green' | 'purple' | 'red' | 'white' | 'dark' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -14,33 +14,30 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyle = 'neo-btn';
-  
+  const baseStyle = 'neo-btn font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[#FFD600]/30 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]';
+
   const variantStyles = {
-    yellow: 'bg-neo-yellow text-neo-dark hover:bg-[#ffdf1a]',
-    orange: 'bg-neo-orange text-neo-dark hover:bg-[#ff7b1a]',
-    blue: 'bg-neo-blue text-white hover:bg-[#638dff]',
-    green: 'bg-neo-green text-neo-dark hover:bg-[#33cc66]',
-    purple: 'bg-neo-purple text-white hover:bg-[#9a6eff]',
-    red: 'bg-neo-red text-white hover:bg-[#ff5555]',
-    white: 'bg-white text-neo-dark hover:bg-cream',
-    dark: 'bg-neo-dark text-white hover:bg-[#2b2b2b]',
+    yellow: 'bg-[#FFD600] text-[#050608] hover:bg-[#FFC000] font-semibold',
+    orange: 'bg-[#FF6A00] text-white hover:bg-[#e55f00]',
+    blue: 'bg-[#4F7CFF] text-white hover:bg-[#3d6aee]',
+    green: 'bg-[#22C55E] text-[#050608] hover:bg-[#1aad52]',
+    purple: 'bg-[#8B5CF6] text-white hover:bg-[#7a4fe4]',
+    red: 'bg-[#EF4444] text-white hover:bg-[#dc2626]',
+    white: 'bg-white/10 text-[#f4f4f5] border border-white/15 hover:bg-white/15 backdrop-blur-sm',
+    dark: 'bg-[#0f0f10] text-[#f4f4f5] border border-white/10 hover:bg-[#1a1a1b]',
+    ghost: 'bg-transparent text-[#f4f4f5] hover:bg-white/8',
+    outline: 'bg-transparent text-[#f4f4f5] border border-white/15 hover:bg-white/6 hover:border-white/25',
   };
 
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs rounded-[6px] border-[2px]',
-    md: 'px-5 py-2.5 text-sm rounded-[8px] border-[3px]',
-    lg: 'px-8 py-4 text-base rounded-[10px] border-[3px]',
+    sm: 'px-3 py-1.5 text-xs rounded-lg',
+    md: 'px-5 py-2.5 text-sm rounded-xl',
+    lg: 'px-7 py-3.5 text-base rounded-xl',
   };
-
-  // Adjust active and shadow scaling according to size
-  const shadowStyle = size === 'sm' 
-    ? 'shadow-[2px_2px_0px_0px_#111111] hover:shadow-[3px_3px_0px_0px_#111111] hover:-translate-x-[1px] hover:-translate-y-[1px] active:shadow-[0px_0px_0px_0px_#111111] active:translate-x-[2px] active:translate-y-[2px]'
-    : 'shadow-[4px_4px_0px_0px_#111111] hover:shadow-[6px_6px_0px_0px_#111111] hover:-translate-x-[2px] hover:-translate-y-[2px] active:shadow-[1px_1px_0px_0px_#111111] active:translate-x-[3px] active:translate-y-[3px]';
 
   return (
     <button
-      className={`${baseStyle} ${variantStyles[variant]} ${sizeStyles[size]} ${shadowStyle} ${className}`}
+      className={`${baseStyle} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
       {...props}
     >
       {children}

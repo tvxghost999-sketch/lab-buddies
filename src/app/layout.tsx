@@ -62,15 +62,15 @@ export default function RootLayout({
     <html lang="en" className="h-full scroll-smooth">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#FFD600" />
+        <meta name="theme-color" content="#050608" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LabBuddies" />
         <link rel="icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body
-        className={`${archivoBlack.variable} ${inter.variable} font-sans antialiased bg-cream text-neo-dark min-h-full flex flex-col`}
+        className={`${archivoBlack.variable} ${inter.variable} font-sans antialiased bg-[#050608] text-[#f4f4f5] min-h-full flex flex-col`}
       >
         <QueryProvider>
           {children}

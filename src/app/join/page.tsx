@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
 import AdInterstitial from '@/components/AdInterstitial';
+import Image from 'next/image';
 
 export default function JoinRoomPage() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function JoinRoomPage() {
     }
   }, [loggedInUser]);
 
-  // Read search parameters for PIN (e.g. from Google Lens scans or invite links)
+  // Read search parameters for PIN
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
@@ -90,7 +91,6 @@ export default function JoinRoomPage() {
             if (pinParam && pinParam.match(/^\d{6}$/)) {
               pin = pinParam;
             } else {
-              // Extract 6-digit PIN from the path segments (e.g. /room/580744)
               const segments = url.pathname.split('/').filter(Boolean);
               const pinSegment = segments.find(seg => seg.match(/^\d{6}$/));
               if (pinSegment) {
@@ -98,14 +98,12 @@ export default function JoinRoomPage() {
               }
             }
           } catch (e) {
-            // Fallback: match any standalone 6-digit number in raw text
             const match = decodedText.match(/\b\d{6}\b/);
             if (match) {
               pin = match[0];
             }
           }
 
-          // Double check: if URL parsing succeeded but didn't set pin segment, fallback search the decoded text
           if (!pin) {
             const match = decodedText.match(/\b\d{6}\b/);
             if (match) {
@@ -123,14 +121,13 @@ export default function JoinRoomPage() {
         }
       };
 
-      // Dynamically import html5-qrcode to prevent SSR reference errors
       import('html5-qrcode')
         .then((module) => {
           const Html5Qrcode = module.Html5Qrcode;
           html5QrCode = new Html5Qrcode('qr-reader-container');
 
           html5QrCode.start(
-            { facingMode: 'environment' }, // Prefer back camera on mobile
+            { facingMode: 'environment' },
             {
               fps: 10,
               qrbox: { width: 220, height: 220 }
@@ -145,12 +142,9 @@ export default function JoinRoomPage() {
                   handleScanSuccess(decodedText);
                 });
             },
-            (errorMessage: string) => {
-              // Ignore frame scan failures
-            }
+            (errorMessage: string) => {}
           ).catch((err: any) => {
             console.warn('Failed to start environment camera, trying fallback...', err);
-            // Fallback to front camera (desktops, laptops)
             html5QrCode.start(
               { facingMode: 'user' },
               {
@@ -181,12 +175,8 @@ export default function JoinRoomPage() {
       return () => {
         if (html5QrCode) {
           try {
-            html5QrCode.stop().catch((err: any) => {
-              // Ignore if already stopped
-            });
-          } catch (e) {
-            // Ignore
-          }
+            html5QrCode.stop().catch((err: any) => {});
+          } catch (e) {}
         }
       };
     }
@@ -245,14 +235,12 @@ export default function JoinRoomPage() {
   // Handle digit inputs
   const handleDigitChange = (index: number, value: string) => {
     if (value.length > 1) {
-      // Handle paste
       const pasted = value.slice(0, 6).split('');
       const newDigits = [...pinDigits];
       pasted.forEach((char, i) => {
         if (index + i < 6) newDigits[index + i] = char;
       });
       setPinDigits(newDigits);
-      // Focus last pasted or end
       const nextFocus = Math.min(index + pasted.length, 5);
       inputRefs[nextFocus].current?.focus();
       return;
@@ -262,14 +250,12 @@ export default function JoinRoomPage() {
     newDigits[index] = value;
     setPinDigits(newDigits);
 
-    // Auto-focus next input
     if (value !== '' && index < 5) {
       inputRefs[index + 1].current?.focus();
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Backspace auto-focus previous
     if (e.key === 'Backspace' && pinDigits[index] === '' && index > 0) {
       inputRefs[index - 1].current?.focus();
     }
@@ -296,7 +282,6 @@ export default function JoinRoomPage() {
       setShuffledDigits(Array(6).fill('').map(() => Math.floor(Math.random() * 10).toString()));
     }, 65);
 
-    // Show slot-machine shuffle animation for 1.5 seconds
     await new Promise((resolve) => setTimeout(resolve, 1500));
     clearInterval(interval);
     setIsShuffling(false);
@@ -305,59 +290,19 @@ export default function JoinRoomPage() {
     setWaitingName(nameToUse);
     setIsWaiting(true);
 
-    // Connect socket and knock
     socketService.connectKnock(pin, nameToUse);
   };
 
-  // Submit Room Name Join
-  const handleJoinByName = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!roomNameInput.trim()) {
-      addToast('Please enter a room name.', 'error');
-      return;
-    }
-    
-    const nameLower = roomNameInput.trim().toLowerCase();
-    let targetPin = '408215';
-    if (nameLower.includes('ds')) targetPin = '229104';
-    if (nameLower.includes('cpp')) targetPin = '772199';
-
-    triggerJoinWithAd(() => {
-      const nameToUse = guestName.trim() || `Buddy_${Math.floor(100 + Math.random() * 900)}`;
-      setIsAdOpen(false);
-      setWaitingPin(targetPin);
-      setWaitingName(nameToUse);
-      setIsWaiting(true);
-
-      // Connect socket and knock
-      socketService.connectKnock(targetPin, nameToUse);
-    });
-  };
-
-  // Click on a recent room to auto-join
-  const handleQuickJoin = (pin: string, name: string) => {
-    triggerJoinWithAd(() => {
-      const nameToUse = guestName.trim() || `Buddy_${Math.floor(100 + Math.random() * 900)}`;
-      setIsAdOpen(false);
-      setWaitingPin(pin);
-      setWaitingName(nameToUse);
-      setIsWaiting(true);
-
-      // Connect socket and knock
-      socketService.connectKnock(pin, nameToUse);
-    });
-  };
-
   return (
-    <div className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark">
+    <div className="flex flex-col min-h-screen bg-[#050608] text-[#f4f4f5]">
       {/* Header */}
-      <header className="border-b-[3px] border-neo-dark bg-white">
+      <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="hover:scale-95 transition-all flex items-center h-full relative z-10">
-            <img src="/logo.png" alt="Lab Buddies Logo" className="h-16 sm:h-20 w-auto object-contain max-h-none scale-105 origin-left" />
+          <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
+            <Image src="/logo.png" alt="Lab Buddies Logo" width={150} height={48} className="h-16 sm:h-20 w-auto object-contain scale-105 origin-left" />
           </Link>
           <Link href="/">
-            <button className="flex items-center gap-1.5 font-archivo text-xs uppercase tracking-wider text-neo-dark px-3 py-1.5 border-[3px] border-neo-dark rounded-[8px] bg-white shadow-neo-sm hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-neo active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all font-black">
+            <button className="flex items-center gap-1.5 text-sm text-[#a1a1aa] hover:text-[#f4f4f5] px-3 py-1.5 rounded-lg border border-white/[0.08] hover:bg-white/[0.06] transition-all">
               <ArrowLeft className="w-4 h-4" />
               Back
             </button>
@@ -367,50 +312,50 @@ export default function JoinRoomPage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Area - Form & Tabs */}
           <div className="lg:col-span-7 flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <h1 className="font-archivo text-3xl sm:text-4xl uppercase text-neo-dark">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#f4f4f5]">
                 Join a Room
               </h1>
-              <p className="text-sm font-bold text-neo-dark/70">
+              <p className="text-sm text-[#71717a]">
                 Enter your nickname and details below to connect with your buddies instantly.
               </p>
             </div>
 
-            {/* Nickname Input Card (Crucial for buddy identity) */}
-            <Card variant="white" className="p-5 flex flex-col gap-3">
-              <span className="text-xs font-black uppercase tracking-wider text-neo-dark bg-neo-yellow/30 self-start px-2 py-0.5 border-[2px] border-neo-dark rounded">
+            {/* Nickname Input Card */}
+            <div className="glass-card p-5 flex flex-col gap-3">
+              <span className="text-xs font-semibold text-[#FFD600] bg-[#FFD600]/10 self-start px-2.5 py-1 rounded-full border border-[#FFD600]/20">
                 Who are you?
               </span>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-black uppercase text-neo-dark">Choose Buddy Nickname</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Choose Buddy Nickname</label>
                 <input
                   type="text"
                   placeholder="e.g. Aman, Priya, Rohit..."
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
-                  className="neo-input w-full text-sm font-semibold"
+                  className="neo-input w-full text-sm"
                 />
               </div>
-            </Card>
+            </div>
 
             {/* Tabs Header */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 p-1 bg-white/[0.02] border border-white/[0.08] rounded-xl">
               <button
                 onClick={() => setActiveTab('pin')}
-                className={`flex-1 py-3 border-[3px] border-neo-dark rounded-[10px] font-archivo text-xs uppercase tracking-wider transition-all font-black shadow-neo-sm ${
-                  activeTab === 'pin' ? 'bg-neo-yellow -translate-y-1 shadow-neo' : 'bg-white'
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === 'pin' ? 'bg-[#FFD600]/15 text-[#FFD600] border border-[#FFD600]/20' : 'text-[#a1a1aa] hover:text-[#f4f4f5]'
                 }`}
               >
                 By PIN
               </button>
               <button
                 onClick={() => setActiveTab('qr')}
-                className={`flex-1 py-3 border-[3px] border-neo-dark rounded-[10px] font-archivo text-xs uppercase tracking-wider transition-all font-black shadow-neo-sm ${
-                  activeTab === 'qr' ? 'bg-neo-yellow -translate-y-1 shadow-neo' : 'bg-white'
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === 'qr' ? 'bg-[#FFD600]/15 text-[#FFD600] border border-[#FFD600]/20' : 'text-[#a1a1aa] hover:text-[#f4f4f5]'
                 }`}
               >
                 Scan QR Code
@@ -418,11 +363,11 @@ export default function JoinRoomPage() {
             </div>
 
             {/* Tabs Content */}
-            <Card variant="white" className="p-6">
+            <div className="glass-card p-6">
               {activeTab === 'pin' && (
                 <form onSubmit={handleJoinByPin} className="flex flex-col gap-6">
                   <div className="flex flex-col gap-3">
-                    <label className="text-xs font-black uppercase text-neo-dark tracking-wide">Enter 6-digit Room PIN</label>
+                    <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider text-center">Enter 6-digit Room PIN</label>
                     <div className="flex justify-between gap-1.5 sm:gap-2 max-w-md mx-auto w-full">
                       {pinDigits.map((digit, index) => {
                         let displayVal = digit;
@@ -432,7 +377,7 @@ export default function JoinRoomPage() {
 
                         let customClass = '';
                         if (isShuffling) {
-                          customClass = 'bg-neo-yellow/20 border-neo-orange animate-pulse scale-95';
+                          customClass = 'bg-[#FFD600]/10 border-[#FF6A00]/50 animate-pulse scale-95';
                         }
 
                         return (
@@ -446,7 +391,7 @@ export default function JoinRoomPage() {
                             value={displayVal}
                             onChange={(e) => handleDigitChange(index, e.target.value)}
                             onKeyDown={(e) => handleKeyDown(index, e)}
-                            className={`w-9 h-11 sm:w-12 sm:h-14 border-[3px] border-neo-dark rounded-[8px] text-center font-archivo text-base sm:text-xl font-black text-neo-dark focus:bg-neo-yellow/10 focus:outline-none transition-all shadow-neo-sm ${customClass}`}
+                            className={`w-9 h-11 sm:w-12 sm:h-14 border border-white/[0.1] bg-white/[0.03] rounded-xl text-center font-mono text-base sm:text-xl font-bold text-[#f4f4f5] focus:bg-[#FFD600]/10 focus:border-[#FFD600]/40 focus:outline-none transition-all shadow-[0_4px_12px_rgba(0,0,0,0.3)] ${customClass}`}
                             disabled={isShuffling}
                           />
                         );
@@ -458,7 +403,7 @@ export default function JoinRoomPage() {
                     type="submit" 
                     variant="yellow" 
                     size="lg" 
-                    className="w-full gap-2"
+                    className="w-full gap-2 shadow-[0_0_20px_rgba(255,214,0,0.2)]"
                     disabled={isShuffling}
                   >
                     <span>{isShuffling ? 'Checking Room...' : 'Join Room'}</span>
@@ -470,75 +415,75 @@ export default function JoinRoomPage() {
               {activeTab === 'qr' && (
                 <div className="flex flex-col gap-5 items-center text-center">
                   <div className="flex flex-col gap-1.5 select-none w-full">
-                    <label className="text-xs font-black uppercase text-neo-dark tracking-wide">
+                    <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">
                       Scan Room Invite QR Code
                     </label>
-                    <p className="text-[10.5px] font-bold text-neo-dark/65 max-w-xs mx-auto">
+                    <p className="text-xs text-[#71717a] max-w-xs mx-auto">
                       Hold the QR code in front of your camera. On successful scan, the PIN will auto-fill.
                     </p>
                   </div>
                   
                   {/* Camera Scanner Viewport */}
-                  <div className="w-full max-w-sm border-[3px] border-neo-dark rounded-[12px] overflow-hidden bg-[#111111] shadow-neo-sm relative min-h-[300px] flex flex-col items-center justify-center p-2">
+                  <div className="w-full max-w-sm border border-white/[0.08] rounded-2xl overflow-hidden bg-black/60 shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative min-h-[300px] flex flex-col items-center justify-center p-2">
                     <div id="qr-reader-container" className="w-full h-full" />
                     
                     {/* Target overlay indicator */}
-                    <div className="absolute inset-8 border-2 border-dashed border-neo-yellow/30 rounded-lg pointer-events-none animate-pulse flex items-center justify-center">
-                      <div className="w-4 h-4 border-t-2 border-l-2 border-neo-yellow absolute top-0 left-0" />
-                      <div className="w-4 h-4 border-t-2 border-r-2 border-neo-yellow absolute top-0 right-0" />
-                      <div className="w-4 h-4 border-b-2 border-l-2 border-neo-yellow absolute bottom-0 left-0" />
-                      <div className="w-4 h-4 border-b-2 border-r-2 border-neo-yellow absolute bottom-0 right-0" />
+                    <div className="absolute inset-8 border border-dashed border-[#FFD600]/25 rounded-xl pointer-events-none animate-pulse flex items-center justify-center">
+                      <div className="w-4 h-4 border-t-2 border-l-2 border-[#FFD600] absolute top-0 left-0" />
+                      <div className="w-4 h-4 border-t-2 border-r-2 border-[#FFD600] absolute top-0 right-0" />
+                      <div className="w-4 h-4 border-b-2 border-l-2 border-[#FFD600] absolute bottom-0 left-0" />
+                      <div className="w-4 h-4 border-b-2 border-r-2 border-[#FFD600] absolute bottom-0 right-0" />
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-bold text-neo-dark/50 select-none">
+                  <span className="text-[10px] text-[#52525b] select-none">
                     Requires camera browser access permission.
                   </span>
                 </div>
               )}
-            </Card>
+            </div>
           </div>
 
           {/* Right Area - Tips & Illustration */}
           <div className="lg:col-span-5 flex flex-col gap-6">
             {/* Playful Illustration Image */}
-            <div className="border-[3px] border-neo-dark rounded-[16px] overflow-hidden bg-white shadow-[3px_3px_0_0_#111111] select-none">
+            <div className="border border-white/[0.08] rounded-2xl overflow-hidden bg-[#0f0f10] shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none">
               <img 
                 src="/join-illustration.jpg" 
                 alt="Let's Share Collaboration Illustration" 
-                className="w-full h-auto object-cover"
+                className="w-full h-auto object-cover opacity-85"
               />
             </div>
 
             {/* Tips Card */}
-            <Card variant="white" className="p-6 flex flex-col gap-4">
-              <div className="flex items-center gap-2 border-b-[2px] border-neo-dark pb-2">
-                <HelpCircle className="w-5 h-5 text-neo-orange" />
-                <span className="font-archivo text-xs uppercase tracking-wider text-neo-dark">
+            <div className="glass-card p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-2 border-b border-white/[0.06] pb-2">
+                <HelpCircle className="w-5 h-5 text-[#FF6A00]" />
+                <span className="text-xs font-semibold text-[#f4f4f5]">
                   Quick Tips
                 </span>
               </div>
-              <ul className="flex flex-col gap-3 font-semibold text-xs text-neo-dark/80">
+              <ul className="flex flex-col gap-3.5 text-xs text-[#a1a1aa]">
                 <li className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-neo-green/20 border-[2.5px] border-neo-dark flex items-center justify-center flex-shrink-0 text-neo-green">
-                    <Check className="w-3 h-3 stroke-[4]" />
+                  <span className="w-5 h-5 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center flex-shrink-0 text-[#22C55E]">
+                    <Check className="w-3 h-3 stroke-[3]" />
                   </span>
                   <span>Anyone can join instantly using the 6-digit Room PIN or scanning the QR code.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-neo-green/20 border-[2.5px] border-neo-dark flex items-center justify-center flex-shrink-0 text-neo-green">
-                    <Check className="w-3 h-3 stroke-[4]" />
+                  <span className="w-5 h-5 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center flex-shrink-0 text-[#22C55E]">
+                    <Check className="w-3 h-3 stroke-[3]" />
                   </span>
                   <span>Rooms are temporary and will automatically self-destruct once the countdown timer expires.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-neo-green/20 border-[2.5px] border-neo-dark flex items-center justify-center flex-shrink-0 text-neo-green">
-                    <Check className="w-3 h-3 stroke-[4]" />
+                  <span className="w-5 h-5 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center flex-shrink-0 text-[#22C55E]">
+                    <Check className="w-3 h-3 stroke-[3]" />
                   </span>
                   <span>All shared files, code snippets, and chat messages synchronize in real-time.</span>
                 </li>
               </ul>
-            </Card>
+            </div>
           </div>
 
         </div>
@@ -546,42 +491,43 @@ export default function JoinRoomPage() {
 
       {/* Knock Waiting Screen Overlay */}
       {isWaiting && (
-        <div className="fixed inset-0 bg-neo-dark/85 flex items-center justify-center p-4 z-50 select-none">
-          <Card variant="white" className="max-w-md w-full p-8 text-center flex flex-col items-center gap-6 border-[4px] shadow-[6px_6px_0_0_#111111]">
-            <div className="w-16 h-16 rounded-full border-[3px] border-neo-dark bg-neo-yellow flex items-center justify-center text-3xl animate-bounce shadow-neo-sm">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 select-none animate-fade-in">
+          <div className="max-w-md w-full p-8 text-center flex flex-col items-center gap-6 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.8)] animate-scale-up">
+            <div className="w-16 h-16 rounded-full bg-[#FFD600]/10 border border-[#FFD600]/20 flex items-center justify-center text-3xl animate-bounce">
               🚪
             </div>
             <div className="flex flex-col gap-2 animate-pulse">
-              <h2 className="font-archivo text-xl uppercase text-neo-dark">Waiting for Host...</h2>
-              <p className="text-xs font-bold text-neo-dark/65 max-w-xs leading-normal mx-auto">
+              <h2 className="text-xl font-bold text-[#f4f4f5]">Waiting for Host...</h2>
+              <p className="text-xs text-[#71717a] max-w-xs leading-normal mx-auto">
                 Knocked on the door. The host has been notified of your request to join. Please wait.
               </p>
             </div>
-            <div className="w-full flex items-center gap-2 border-[2.5px] border-neo-dark bg-cream rounded-[8px] p-2.5 justify-center text-[10px] font-black uppercase text-neo-dark">
-              <span className="w-2.5 h-2.5 rounded-full bg-neo-orange animate-ping" />
+            <div className="w-full flex items-center gap-2 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 justify-center text-xs text-[#a1a1aa]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#FF6A00] animate-ping" />
               <span>Knocking as: {waitingName} (Room #{waitingPin})</span>
             </div>
             <Button 
               variant="red" 
               size="sm" 
-              className="w-full border-[2.5px] text-xs font-archivo shadow-[2px_2px_0_0_#111111]"
+              className="w-full justify-center text-xs"
               onClick={handleCancelWaiting}
             >
               Cancel Request
             </Button>
-          </Card>
+          </div>
         </div>
       )}
+
       {/* Room Password Request Overlay */}
       {showPasswordPrompt && (
-        <div className="fixed inset-0 bg-neo-dark/85 flex items-center justify-center p-4 z-50 select-none">
-          <Card variant="white" className="max-w-md w-full p-8 text-center flex flex-col items-center gap-5 border-[4px] shadow-[6px_6px_0_0_#111111]">
-            <div className="w-16 h-16 rounded-full border-[3px] border-neo-dark bg-neo-orange flex items-center justify-center text-3xl animate-pulse shadow-neo-sm">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 select-none animate-fade-in">
+          <div className="max-w-md w-full p-8 text-center flex flex-col items-center gap-5 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.8)] animate-scale-up">
+            <div className="w-16 h-16 rounded-full bg-[#FF6A00]/10 border border-[#FF6A00]/20 flex items-center justify-center text-3xl animate-pulse">
               🔒
             </div>
             <div className="flex flex-col gap-1.5">
-              <h2 className="font-archivo text-lg uppercase text-neo-dark">Password Required</h2>
-              <p className="text-xs font-bold text-neo-dark/70 max-w-xs leading-normal mx-auto">
+              <h2 className="text-lg font-bold text-[#f4f4f5]">Password Required</h2>
+              <p className="text-xs text-[#71717a] max-w-xs leading-normal mx-auto">
                 This study room is password-protected. Enter the password below to request joining.
               </p>
             </div>
@@ -602,7 +548,7 @@ export default function JoinRoomPage() {
                   type="button"
                   variant="white" 
                   size="sm" 
-                  className="flex-1 border-[2.5px] text-xs font-archivo shadow-[2.5px_2.5px_0_0_#111111]"
+                  className="flex-1 justify-center text-xs"
                   onClick={() => {
                     setShowPasswordPrompt(false);
                     setWaitingPin('');
@@ -617,13 +563,13 @@ export default function JoinRoomPage() {
                   type="submit"
                   variant="yellow" 
                   size="sm" 
-                  className="flex-1 border-[2.5px] text-xs font-archivo shadow-[2.5px_2.5px_0_0_#111111]"
+                  className="flex-1 justify-center text-xs"
                 >
                   Submit
                 </Button>
               </div>
             </form>
-          </Card>
+          </div>
         </div>
       )}
 

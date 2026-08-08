@@ -4,11 +4,11 @@ import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { 
+import {
   Zap, Shield, Sparkles, Folder, Code, FileText, Trash2, ArrowRight,
   ShieldCheck, FolderUp, Terminal, StickyNote, Settings,
   PlusCircle, Share2, Users, Flame, Check, ShieldAlert,
-  Compass, Target, GraduationCap, BookOpen, MessageSquare
+  Compass, Target, GraduationCap, BookOpen, MessageSquare, Lock
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
@@ -22,14 +22,14 @@ if (typeof window !== 'undefined') {
 
 const RollingDigit = ({ value, baseAngle }: { value: number; baseAngle: number }) => {
   return (
-    <motion.div 
-      animate={{ 
-        rotate: value % 2 === 0 
-          ? [baseAngle, baseAngle - 6, baseAngle] 
+    <motion.div
+      animate={{
+        rotate: value % 2 === 0
+          ? [baseAngle, baseAngle - 6, baseAngle]
           : [baseAngle, baseAngle + 6, baseAngle]
       }}
       transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
-      className="w-10 h-12 border-[3px] border-neo-dark rounded-[8px] bg-white overflow-hidden shadow-neo-sm relative flex justify-center"
+      className="w-10 h-12 border border-[#FFD600]/30 rounded-xl bg-[#FFD600]/10 overflow-hidden relative flex justify-center shadow-[0_0_12px_rgba(255,214,0,0.15)]"
       style={{ transform: `rotate(${baseAngle}deg)` }}
     >
       <motion.div
@@ -38,9 +38,9 @@ const RollingDigit = ({ value, baseAngle }: { value: number; baseAngle: number }
         className="flex flex-col items-center w-full absolute top-0"
       >
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-          <span 
-            key={num} 
-            className="w-full flex items-center justify-center font-archivo text-lg sm:text-xl font-black text-neo-dark select-none"
+          <span
+            key={num}
+            className="w-full flex items-center justify-center text-lg sm:text-xl font-bold text-[#FFD600] select-none font-mono"
             style={{ height: '42px', lineHeight: '42px' }}
           >
             {num}
@@ -74,78 +74,32 @@ export default function LandingPage() {
     if (isMobile) return;
 
     const ctx = gsap.context(() => {
-      // 1. Features Grid Animation (play reverse play reverse)
       gsap.from('.gsap-feature-card', {
-        y: 60,
-        opacity: 0,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: 'back.out(1.5)',
-        scrollTrigger: {
-          trigger: '.gsap-feature-grid',
-          start: 'top 85%',
-          end: 'bottom 15%',
-          toggleActions: 'play reverse play reverse'
-        }
+        y: 60, opacity: 0, duration: 0.8, stagger: 0.1, ease: 'back.out(1.5)',
+        scrollTrigger: { trigger: '.gsap-feature-grid', start: 'top 85%', end: 'bottom 15%', toggleActions: 'play reverse play reverse' }
       });
-
-      // 2. How It Works Steps timeline
       gsap.utils.toArray('.gsap-step-card').forEach((step: any, index) => {
         const isEven = index % 2 === 0;
         gsap.from(step, {
-          x: isEven ? -100 : 100,
-          opacity: 0,
-          duration: 0.8,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: step,
-            start: 'top 85%',
-            end: 'bottom 15%',
-            toggleActions: 'play reverse play reverse'
-          }
+          x: isEven ? -100 : 100, opacity: 0, duration: 0.8, ease: 'power3.out',
+          scrollTrigger: { trigger: step, start: 'top 85%', end: 'bottom 15%', toggleActions: 'play reverse play reverse' }
         });
       });
-
-
-      // 4. About Story Card Slide In
       gsap.from('.gsap-about-story', {
-        scale: 0.96,
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '.gsap-about-story',
-          start: 'top 85%',
-          end: 'bottom 15%',
-          toggleActions: 'play reverse play reverse'
-        }
+        scale: 0.96, opacity: 0, duration: 0.8, ease: 'power2.out',
+        scrollTrigger: { trigger: '.gsap-about-story', start: 'top 85%', end: 'bottom 15%', toggleActions: 'play reverse play reverse' }
       });
-
-      // 5. About Values Cards Stagger
       gsap.from('.gsap-about-value', {
-        y: 50,
-        opacity: 0,
-        duration: 0.8,
-        stagger: 0.15,
-        ease: 'back.out(1.5)',
-        scrollTrigger: {
-          trigger: '.gsap-about-values-grid',
-          start: 'top 85%',
-          end: 'bottom 15%',
-          toggleActions: 'play reverse play reverse'
-        }
+        y: 50, opacity: 0, duration: 0.8, stagger: 0.15, ease: 'back.out(1.5)',
+        scrollTrigger: { trigger: '.gsap-about-values-grid', start: 'top 85%', end: 'bottom 15%', toggleActions: 'play reverse play reverse' }
       });
     }, pageContainerRef);
-
     return () => ctx.revert();
   }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   } as const;
 
   const itemVariants = {
@@ -154,124 +108,31 @@ export default function LandingPage() {
   } as const;
 
   const featureItems = [
-    {
-      title: "6-Digit Pin Join",
-      description: "No emails, usernames, or signups. Just input a simple 6-digit PIN generated by the room creator and enter instantly.",
-      icon: <Sparkles className="w-5 h-5 text-neo-dark" />,
-      color: "white" as const,
-      badge: "Fast Entry"
-    },
-    {
-      title: "Wait-to-Join Knocking",
-      description: "Secure workspace gatekeeping. Guests wait in a custom waiting room overlay until the host accepts them from their dashboard.",
-      icon: <ShieldCheck className="w-5 h-5 text-neo-dark" />,
-      color: "yellow" as const,
-      badge: "Security"
-    },
-    {
-      title: "Real-time Text Chat",
-      description: "Playful Neo-Brutalist dialogue card interfaces. Your own messages align dynamically to the right with tail bubbles, WhatsApp style.",
-      icon: <MessageSquare className="w-5 h-5 text-white" />,
-      color: "purple" as const,
-      badge: "Messaging"
-    },
-    {
-      title: "Physical File Sharing",
-      description: "Upload files like PDFs, presentations, slides, and images. Classmates inside the room can preview and download them instantly.",
-      icon: <FolderUp className="w-5 h-5 text-neo-dark" />,
-      color: "orange" as const,
-      badge: "File Sharing"
-    },
-    {
-      title: "Code Snippets Sharing",
-      description: "Share formatted code snippets with classmates. Perfect for computer science lectures, lab assignments, and group projects.",
-      icon: <Terminal className="w-5 h-5 text-neo-dark" />,
-      color: "green" as const,
-      badge: "Study Tools"
-    },
-    {
-      title: "Collaborative Sticky Notes",
-      description: "Write, update, color, or delete floating notes on a shared dashboard to collaborate on group tasks and lecture reminders.",
-      icon: <StickyNote className="w-5 h-5 text-neo-dark" />,
-      color: "blue" as const,
-      badge: "Collaboration"
-    },
-    {
-      title: "Host Control Panel",
-      description: "Room creators keep full admin control. Mute spam messages, lock the room to new visitors, or remove unruly participants.",
-      icon: <Settings className="w-5 h-5 text-neo-dark" />,
-      color: "cream" as const,
-      badge: "Administration"
-    },
-    {
-      title: "Auto-Delete Timer",
-      description: "Keep study materials secure. Set a timer (from 30 minutes to 24 hours) after which the room and all its content automatically delete.",
-      icon: <ShieldCheck className="w-5 h-5 text-white" />,
-      color: "red" as const,
-      badge: "Privacy"
-    }
+    { title: "6-Digit Pin Join", description: "No emails, usernames, or signups. Just input a simple 6-digit PIN generated by the room creator and enter instantly.", icon: <Sparkles className="w-5 h-5" />, accent: '#FFD600', badge: "Fast Entry" },
+    { title: "Wait-to-Join Knocking", description: "Secure workspace gatekeeping. Guests wait in a custom waiting room overlay until the host accepts them from their dashboard.", icon: <ShieldCheck className="w-5 h-5" />, accent: '#22C55E', badge: "Security" },
+    { title: "Real-time Text Chat", description: "Playful dialogue card interfaces. Your own messages align dynamically to the right with tail bubbles, WhatsApp style.", icon: <MessageSquare className="w-5 h-5" />, accent: '#8B5CF6', badge: "Messaging" },
+    { title: "Physical File Sharing", description: "Upload files like PDFs, presentations, slides, and images. Classmates inside the room can preview and download them instantly.", icon: <FolderUp className="w-5 h-5" />, accent: '#FF6A00', badge: "File Sharing" },
+    { title: "Code Snippets Sharing", description: "Share formatted code snippets with classmates. Perfect for computer science lectures, lab assignments, and group projects.", icon: <Terminal className="w-5 h-5" />, accent: '#4F7CFF', badge: "Study Tools" },
+    { title: "Collaborative Sticky Notes", description: "Write, update, color, or delete floating notes on a shared dashboard to collaborate on group tasks and lecture reminders.", icon: <StickyNote className="w-5 h-5" />, accent: '#22C55E', badge: "Collaboration" },
+    { title: "Host Control Panel", description: "Room creators keep full admin control. Mute spam messages, lock the room to new visitors, or remove unruly participants.", icon: <Settings className="w-5 h-5" />, accent: '#a1a1aa', badge: "Administration" },
+    { title: "Auto-Delete Timer", description: "Keep study materials secure. Set a timer (from 30 minutes to 24 hours) after which the room and all its content automatically delete.", icon: <Trash2 className="w-5 h-5" />, accent: '#EF4444', badge: "Privacy" }
   ];
 
   const steps = [
-    {
-      number: "01",
-      title: "Create a Room",
-      description: "Hit the 'Create Room' button. Choose a name for your workspace, set the max participant limit (up to 100 members), and configure an auto-delete self-destruct timer (from 30 minutes up to 24 hours). We will instantly spawn a room PIN in the database.",
-      icon: <PlusCircle className="w-8 h-8 text-neo-dark" />,
-      color: "white" as const,
-      colorTag: "bg-neo-yellow"
-    },
-    {
-      number: "02",
-      title: "Share the Credentials",
-      description: "Copy the 6-digit room PIN. Share it with your friends, classmates, or project buddies. There are no registration links or passwords; they just need the PIN to connect.",
-      icon: <Share2 className="w-8 h-8 text-neo-dark" />,
-      color: "cream" as const,
-      colorTag: "bg-neo-orange"
-    },
-    {
-      number: "03",
-      title: "Approve & Collaborate",
-      description: "As the host, you receive a floating entry notification when buddies knock to join. Click 'Accept' to let them enter. Once inside, everyone can upload physical files, write text chat messages, share C++/JS snippets, and organize sticky notes on a shared wall.",
-      icon: <Users className="w-8 h-8 text-white" />,
-      color: "purple" as const,
-      colorTag: "bg-white text-neo-dark"
-    },
-    {
-      number: "04",
-      title: "Automatic Self-Destruct",
-      description: "Keep your details completely private. As soon as the host's configured countdown timer expires, the server triggers an automated scrub. The room status changes to 'Expired', clearing the chat feed, physical files, sticky notes, and room history from memory.",
-      icon: <Flame className="w-8 h-8 text-neo-dark" />,
-      color: "white" as const,
-      colorTag: "bg-neo-red text-white"
-    }
+    { number: "01", title: "Create a Room", description: "Hit the 'Create Room' button. Choose a name for your workspace, set the max participant limit (up to 100 members), and configure an auto-delete self-destruct timer (from 30 minutes up to 24 hours). We will instantly spawn a room PIN in the database.", icon: <PlusCircle className="w-6 h-6" />, accent: '#FFD600' },
+    { number: "02", title: "Share the Credentials", description: "Copy the 6-digit room PIN. Share it with your friends, classmates, or project buddies. There are no registration links or passwords; they just need the PIN to connect.", icon: <Share2 className="w-6 h-6" />, accent: '#FF6A00' },
+    { number: "03", title: "Approve & Collaborate", description: "As the host, you receive a floating entry notification when buddies knock to join. Click 'Accept' to let them enter. Once inside, everyone can upload physical files, write text chat messages, share code snippets, and organize sticky notes on a shared wall.", icon: <Users className="w-6 h-6" />, accent: '#8B5CF6' },
+    { number: "04", title: "Automatic Self-Destruct", description: "Keep your details completely private. As soon as the host's configured countdown timer expires, the server triggers an automated scrub. The room status changes to 'Expired', clearing the chat feed, physical files, sticky notes, and room history from memory.", icon: <Flame className="w-6 h-6" />, accent: '#EF4444' }
   ];
 
-
-
   const values = [
-    {
-      title: "Zero-Friction Access",
-      desc: "Collaboration should start instantly. We cut out registration walls, authentication screens, and emails. Enter a study room in two clicks.",
-      icon: <Compass className="w-8 h-8 text-neo-dark" />,
-      color: "white" as const
-    },
-    {
-      title: "Privacy by Design",
-      desc: "We don't sell your data. Files shared are ephemeral. Rooms, logs, chats, and documents self-destruct from the servers as soon as your timer completes.",
-      icon: <Target className="w-8 h-8 text-neo-dark" />,
-      color: "cream" as const
-    },
-    {
-      title: "Built for Students",
-      desc: "Built for labs, study grids, hackathons, and lectures. Simple features tailored specifically to code compiling, PDF reviewing, and exam note mapping.",
-      icon: <GraduationCap className="w-8 h-8 text-white" />,
-      color: "purple" as const
-    }
+    { title: "Zero-Friction Access", desc: "Collaboration should start instantly. We cut out registration walls, authentication screens, and emails. Enter a study room in two clicks.", icon: <Compass className="w-6 h-6" />, accent: '#FFD600' },
+    { title: "Privacy by Design", desc: "We don't sell your data. Files shared are ephemeral. Rooms, logs, chats, and documents self-destruct from the servers as soon as your timer completes.", icon: <Target className="w-6 h-6" />, accent: '#22C55E' },
+    { title: "Built for Students", desc: "Built for labs, study grids, hackathons, and lectures. Simple features tailored specifically to code compiling, PDF reviewing, and exam note mapping.", icon: <GraduationCap className="w-6 h-6" />, accent: '#8B5CF6' }
   ];
 
   return (
-    <div ref={pageContainerRef} className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark scroll-smooth overflow-x-hidden">
+    <div ref={pageContainerRef} className="flex flex-col min-h-screen bg-[#050608] text-[#f4f4f5] scroll-smooth overflow-x-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -282,132 +143,110 @@ export default function LandingPage() {
             "description": "Lab Buddies is a secure, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
             "applicationCategory": "EducationalApplication",
             "operatingSystem": "All",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD"
-            }
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
           })
         }}
       />
       <Navbar />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 flex flex-col gap-28">
-        
-        {/* Section 0: Hero Section */}
+      {/* Background radial gradient */}
+      <div className="pointer-events-none fixed inset-0 z-0" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,214,0,0.06), transparent)' }} />
+
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 flex flex-col gap-32">
+
+        {/* ── Hero Section ── */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* Left Column - Headline & Call to Action */}
-          <div className="lg:col-span-7 flex flex-col gap-6 text-left">
-            <motion.div 
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="flex flex-col gap-6"
-            >
-              <motion.div variants={itemVariants} className="inline-flex items-center gap-1.5 self-start bg-neo-purple text-white px-3 py-1 border-[2.5px] border-neo-dark rounded-full text-xs font-black uppercase tracking-wider shadow-neo-sm">
-                <Sparkles className="w-3.5 h-3.5 fill-white" />
+          <div className="lg:col-span-7 flex flex-col gap-8 text-left">
+            <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col gap-6">
+              <motion.div variants={itemVariants} className="inline-flex items-center gap-2 self-start bg-[#FFD600]/10 text-[#FFD600] border border-[#FFD600]/20 px-3 py-1.5 rounded-full text-xs font-medium">
+                <Sparkles className="w-3.5 h-3.5" />
                 <span>#1 Platform for Students</span>
               </motion.div>
 
-              <motion.h1 variants={itemVariants} className="font-archivo text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight uppercase text-neo-dark">
+              <motion.h1 variants={itemVariants} className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] tracking-tight text-[#f4f4f5]">
                 Share Code.<br />
                 Share Files.<br />
-                <span className="text-neo-orange">No Login Required.</span>
+                <span style={{ background: 'linear-gradient(135deg, #FFD600, #FF6A00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                  No Login Required.
+                </span>
               </motion.h1>
 
-              <motion.p variants={itemVariants} className="text-base sm:text-lg font-semibold text-neo-dark/80 max-w-xl">
+              <motion.p variants={itemVariants} className="text-base sm:text-lg text-[#a1a1aa] max-w-xl leading-relaxed">
                 Instantly share code snippets, notes, files, terminal outputs and links with classmates using a simple 6-digit room PIN.
               </motion.p>
 
-              {/* Action Buttons */}
-              <motion.div variants={itemVariants} className="flex flex-wrap gap-4 mt-2">
+              <motion.div variants={itemVariants} className="flex flex-wrap gap-3 mt-2">
                 <Link href="/create">
-                  <Button variant="yellow" size="lg" className="gap-2 group">
+                  <Button variant="yellow" size="lg" className="gap-2 group shadow-[0_0_20px_rgba(255,214,0,0.25)] hover:shadow-[0_0_30px_rgba(255,214,0,0.35)]">
                     <span>Create Room</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </Button>
                 </Link>
                 <Link href="/join">
-                  <Button variant="white" size="lg">
-                    Join Room
-                  </Button>
+                  <Button variant="outline" size="lg">Join Room</Button>
                 </Link>
               </motion.div>
 
-              {/* SEO Value Proposition */}
-              <motion.div variants={itemVariants} className="flex items-center gap-2 mt-4 select-none">
-                <div className="bg-neo-yellow text-neo-dark font-archivo text-xs px-3 py-1 border-[2.5px] border-neo-dark rounded shadow-neo-sm font-black">
+              <motion.div variants={itemVariants} className="flex items-center gap-2 mt-2">
+                <div className="inline-flex items-center gap-1.5 bg-[#FFD600]/10 text-[#FFD600] border border-[#FFD600]/20 px-3 py-1.5 rounded-full text-xs font-medium">
+                  <Lock className="w-3 h-3" />
                   No login. No tracking. Just a PIN.
                 </div>
               </motion.div>
             </motion.div>
           </div>
 
-          {/* Right Column - Conceptual Neo-Brutalist Illustration */}
+          {/* Right Column — Animated PIN Hero */}
           <div className="lg:col-span-5 flex justify-center relative">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', stiffness: 80, delay: 0.3 }}
               className="relative w-full max-w-[420px] aspect-square flex items-center justify-center"
             >
-              {/* Decorative background shapes */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] rounded-full border-[3px] border-dashed border-neo-dark/30 animate-spin" style={{ animationDuration: '60s' }} />
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-neo-yellow rounded-full border-[3px] border-neo-dark -z-10 shadow-neo" />
-              <div className="absolute -top-6 -left-6 w-16 h-16 bg-neo-blue rounded-lg border-[3px] border-neo-dark rotate-12 -z-10" />
+              {/* Decorative ring */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] rounded-full border border-dashed border-white/[0.07] animate-spin" style={{ animationDuration: '60s' }} />
+              <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,214,0,0.12), transparent 70%)' }} />
+              <div className="absolute -top-6 -left-6 w-16 h-16 rounded-xl border border-[#4F7CFF]/20 bg-[#4F7CFF]/5" />
 
-              {/* Main Laptop Illustration Container */}
               <div className="relative z-10 w-full flex flex-col gap-6 items-center">
-                {/* Upper row items: Laptop (Code) and Folder */}
+                {/* Upper cards */}
                 <div className="flex justify-between w-full px-4 items-end">
-                  {/* Laptop Card */}
-                  <Card variant="white" hasShadow shadowSize="sm" className="p-3 w-32 rotate-[-6deg] hover:rotate-0 transition-transform">
-                    <div className="bg-neo-yellow p-2 border-[2px] border-neo-dark rounded-lg flex items-center justify-center mb-2">
-                      <Code className="w-6 h-6 text-neo-dark" />
+                  <Card variant="default" className="p-3 w-32 rotate-[-6deg] hover:rotate-0 transition-transform cursor-pointer">
+                    <div className="bg-[#FFD600]/15 p-2 rounded-xl flex items-center justify-center mb-2 border border-[#FFD600]/20">
+                      <Code className="w-6 h-6 text-[#FFD600]" />
                     </div>
-                    <div className="h-1.5 w-16 bg-neo-dark rounded-full mb-1"></div>
-                    <div className="h-1.5 w-12 bg-neo-dark/50 rounded-full"></div>
+                    <div className="h-1.5 w-16 bg-white/10 rounded-full mb-1" />
+                    <div className="h-1.5 w-12 bg-white/5 rounded-full" />
                   </Card>
-
-                  {/* Folder Card */}
-                  <Card variant="orange" hasShadow shadowSize="sm" className="p-3 w-28 rotate-[8deg] hover:rotate-0 transition-transform text-neo-dark">
-                    <Folder className="w-10 h-10 fill-neo-dark mb-1" />
-                    <div className="h-1.5 w-10 bg-neo-dark rounded-full"></div>
+                  <Card variant="default" className="p-3 w-28 rotate-[8deg] hover:rotate-0 transition-transform cursor-pointer border-[#FF6A00]/20">
+                    <Folder className="w-10 h-10 text-[#FF6A00] mb-1" />
+                    <div className="h-1.5 w-10 bg-white/10 rounded-full" />
                   </Card>
                 </div>
 
-                {/* Center Row: 6-Digit Room Pin */}
+                {/* PIN digits */}
                 <div className="flex flex-col items-center gap-2">
-                  <span className="font-archivo text-xs uppercase tracking-wider text-neo-dark bg-white border-[2px] border-neo-dark px-3 py-1 rounded-md shadow-neo-sm font-black">
-                    Room PIN
-                  </span>
+                  <span className="text-xs text-[#71717a] uppercase tracking-widest font-medium">Room PIN</span>
                   <div className="flex gap-1.5">
                     {pinDigits.map((digit, idx) => (
-                      <RollingDigit 
-                        key={idx} 
-                        value={digit} 
-                        baseAngle={(idx - 2.5) * 3} 
-                      />
+                      <RollingDigit key={idx} value={digit} baseAngle={(idx - 2.5) * 3} />
                     ))}
                   </div>
                 </div>
 
-                {/* Lower Row items: Notes and Devices */}
+                {/* Lower cards */}
                 <div className="flex justify-between w-full px-4 items-start">
-                  {/* Notes Card */}
-                  <Card variant="purple" hasShadow shadowSize="sm" className="p-3 w-28 rotate-[-12deg] hover:rotate-0 transition-transform">
-                    <FileText className="w-8 h-8 text-white mb-2" />
-                    <div className="h-1.5 w-12 bg-white rounded-full mb-1"></div>
-                    <div className="h-1.5 w-8 bg-white/60 rounded-full"></div>
+                  <Card variant="default" className="p-3 w-28 rotate-[-12deg] hover:rotate-0 transition-transform cursor-pointer border-[#8B5CF6]/20">
+                    <FileText className="w-8 h-8 text-[#8B5CF6] mb-2" />
+                    <div className="h-1.5 w-12 bg-white/10 rounded-full mb-1" />
+                    <div className="h-1.5 w-8 bg-white/5 rounded-full" />
                   </Card>
-
-                  {/* Desktop / Green device Card */}
-                  <Card variant="green" hasShadow shadowSize="sm" className="p-3 w-32 rotate-[6deg] hover:rotate-0 transition-transform">
-                    <div className="bg-white border-[2px] border-neo-dark h-12 rounded flex items-center justify-center mb-1 font-archivo text-xs font-black">
+                  <Card variant="default" className="p-3 w-32 rotate-[6deg] hover:rotate-0 transition-transform cursor-pointer border-[#22C55E]/20">
+                    <div className="bg-[#22C55E]/15 border border-[#22C55E]/20 h-12 rounded-xl flex items-center justify-center mb-1 text-[#22C55E] text-xs font-bold">
                       ACTIVE
                     </div>
-                    <div className="h-2 w-14 bg-neo-dark rounded-full"></div>
+                    <div className="h-2 w-14 bg-white/10 rounded-full" />
                   </Card>
                 </div>
               </div>
@@ -415,187 +254,172 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Section 1: Features Section */}
-        <section id="features" className="flex flex-col gap-10 scroll-mt-20">
+        {/* ── Features Section (Agent Bento Grid) ── */}
+        <section id="features" className="flex flex-col gap-12 scroll-mt-20">
           <div className="flex flex-col gap-3 items-center text-center">
-            <span className="bg-neo-orange text-neo-dark font-archivo text-xs uppercase tracking-wider px-3 py-1 border-[2.5px] border-neo-dark rounded-full shadow-neo-sm font-black select-none">
+            <span className="inline-flex items-center gap-1.5 bg-[#FF6A00]/10 text-[#FF6A00] border border-[#FF6A00]/20 px-3 py-1.5 rounded-full text-xs font-medium">
+              <Zap className="w-3.5 h-3.5" />
               Platform Capabilities
             </span>
-            <h2 className="font-archivo text-2xl sm:text-4xl uppercase text-neo-dark max-w-2xl leading-tight">
+            <h2 className="text-2xl sm:text-4xl font-bold text-[#f4f4f5] max-w-2xl leading-tight">
               Features Packed for Classrooms
             </h2>
-            <p className="text-xs sm:text-sm font-bold text-neo-dark/70 max-w-md">
-              Everything you and your classmates need to share files, code snippets, notes, and chats instantly on a secure local network.
+            <p className="text-sm text-[#71717a] max-w-md leading-relaxed">
+              Everything you and your classmates need to share files, code snippets, notes, and chats instantly in a secure room.
             </p>
           </div>
 
-          <div className="gsap-feature-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Bento Grid */}
+          <div className="gsap-feature-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {featureItems.map((item, idx) => (
               <div key={idx} className="gsap-feature-card">
-                <Card variant={item.color} className="p-6 h-full flex flex-col gap-4 text-left border-[3px] shadow-neo-sm">
-                  <div className="flex justify-between items-center">
-                    <div className="w-10 h-10 bg-white border-[2.5px] border-neo-dark rounded-[10px] shadow-neo-sm flex items-center justify-center">
+                <div
+                  className="glow-card p-5 h-full flex flex-col gap-4 text-left group transition-all duration-300 cursor-pointer"
+                  style={{ '--glow-color': item.accent } as React.CSSProperties}
+                >
+                  <div className="flex justify-between items-start">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: `${item.accent}15`, border: `1px solid ${item.accent}25`, color: item.accent }}
+                    >
                       {item.icon}
                     </div>
-                    <span className="text-[9px] font-black uppercase tracking-wider border-[1.5px] border-neo-dark px-2 py-0.5 rounded-full bg-cream text-neo-dark">
+                    <span
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-full border"
+                      style={{ color: item.accent, borderColor: `${item.accent}25`, background: `${item.accent}10` }}
+                    >
                       {item.badge}
                     </span>
                   </div>
-                  <h3 className="font-archivo text-xs uppercase tracking-wide mt-2">
-                    {item.title}
-                  </h3>
-                  <p className={`text-[11px] font-bold leading-normal ${
-                    item.color === 'purple' || item.color === 'red' ? 'text-white/85' : 'text-neo-dark/70'
-                  }`}>
-                    {item.description}
-                  </p>
-                </Card>
+                  <h3 className="text-sm font-semibold text-[#f4f4f5]">{item.title}</h3>
+                  <p className="text-xs text-[#71717a] leading-relaxed">{item.description}</p>
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Section 2: How It Works Section */}
-        <section id="how-it-works" className="flex flex-col gap-10 scroll-mt-20">
+        {/* ── How It Works ── */}
+        <section id="how-it-works" className="flex flex-col gap-12 scroll-mt-20">
           <div className="flex flex-col gap-3 items-center text-center">
-            <span className="bg-neo-blue text-white font-archivo text-xs uppercase tracking-wider px-3 py-1 border-[2.5px] border-neo-dark rounded-full shadow-neo-sm font-black select-none">
+            <span className="inline-flex items-center gap-1.5 bg-[#4F7CFF]/10 text-[#4F7CFF] border border-[#4F7CFF]/20 px-3 py-1.5 rounded-full text-xs font-medium">
+              <BookOpen className="w-3.5 h-3.5" />
               System Guide
             </span>
-            <h2 className="font-archivo text-2xl sm:text-4xl uppercase text-neo-dark max-w-2xl leading-tight">
+            <h2 className="text-2xl sm:text-4xl font-bold text-[#f4f4f5] max-w-2xl leading-tight">
               How Lab Buddies Works
             </h2>
-            <p className="text-xs sm:text-sm font-bold text-neo-dark/70 max-w-md">
-              A secure, zero-friction path to temporary student collaborations. Learn how we handle rooms in 4 simple steps.
+            <p className="text-sm text-[#71717a] max-w-md leading-relaxed">
+              A secure, zero-friction path to temporary student collaborations in 4 simple steps.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 max-w-4xl mx-auto w-full">
+            {steps.map((step, idx) => (
+              <div key={idx} className="gsap-step-card">
+                <div className="glass-card p-5 md:p-6 hover:border-white/15 transition-all">
+                  <div className="flex flex-col md:flex-row gap-5 items-start md:items-center">
+                    <div
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg flex-shrink-0"
+                      style={{ background: `${step.accent}15`, border: `1px solid ${step.accent}25`, color: step.accent }}
+                    >
+                      {step.number}
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1.5 text-left">
+                      <h3 className="text-sm font-semibold text-[#f4f4f5] flex items-center gap-2">
+                        <span style={{ color: step.accent }}>{step.icon}</span>
+                        {step.title}
+                      </h3>
+                      <p className="text-xs text-[#71717a] leading-relaxed">{step.description}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── About Section ── */}
+        <section id="about" className="flex flex-col gap-12 scroll-mt-20">
+          <div className="flex flex-col gap-3 items-center text-center">
+            <span className="inline-flex items-center gap-1.5 bg-[#8B5CF6]/10 text-[#8B5CF6] border border-[#8B5CF6]/20 px-3 py-1.5 rounded-full text-xs font-medium">
+              <Target className="w-3.5 h-3.5" />
+              Our Mission
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-bold text-[#f4f4f5] max-w-2xl leading-tight">
+              Designed to Connect Classmates
+            </h2>
+            <p className="text-sm text-[#71717a] max-w-md leading-relaxed">
+              We believe study resources should be shared instantly, privately, and seamlessly.
             </p>
           </div>
 
           <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
-            {steps.map((step, idx) => (
-              <div key={idx} className="gsap-step-card">
-                <Card variant={step.color} className="p-5 md:p-6 border-[3px] shadow-neo-sm hover:shadow-neo transition-all">
-                  <div className="flex flex-col md:flex-row gap-5 items-start md:items-center">
-                    {/* Number Badge */}
-                    <div className={`w-12 h-12 rounded-full border-[2.5px] border-neo-dark flex items-center justify-center font-archivo text-lg font-black flex-shrink-0 shadow-neo-sm ${step.colorTag}`}>
-                      {step.number}
-                    </div>
-                    {/* Text Body */}
-                    <div className="flex-1 flex flex-col gap-1.5 text-left">
-                      <h3 className="font-archivo text-sm uppercase text-neo-dark tracking-wide flex items-center gap-2">
-                        <span className="scale-75">{step.icon}</span>
-                        {step.title}
-                      </h3>
-                      <p className={`text-[11px] font-semibold leading-relaxed ${
-                        step.color === 'purple' ? 'text-white/85' : 'text-neo-dark/70'
-                      }`}>
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </section>
-
-
-        {/* Section 4: About Us Section */}
-        <section id="about" className="flex flex-col gap-10 scroll-mt-20">
-          <div className="flex flex-col gap-3 items-center text-center">
-            <span className="bg-neo-purple text-white font-archivo text-xs uppercase tracking-wider px-3 py-1 border-[2.5px] border-neo-dark rounded-full shadow-neo-sm font-black select-none">
-              Our Mission
-            </span>
-            <h2 className="font-archivo text-2xl sm:text-4xl uppercase text-neo-dark max-w-2xl leading-tight">
-              Designed to Connect Classmates
-            </h2>
-            <p className="text-xs sm:text-sm font-bold text-neo-dark/70 max-w-md">
-              We believe study resources should be shared instantly, privately, and seamlessly. Learn what drives our product.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-8 max-w-4xl mx-auto w-full">
             {/* Story Card */}
             <div className="gsap-about-story">
-              <Card variant="white" className="p-6 md:p-8 text-left border-[3px] shadow-neo flex flex-col gap-4">
-                <div className="flex items-center gap-2 border-b-[2.5px] border-neo-dark pb-2.5 select-none">
-                  <BookOpen className="w-5 h-5 text-neo-orange" />
-                  <h3 className="font-archivo text-sm uppercase text-neo-dark tracking-wide">
-                    The Story behind "Lab Buddies"
-                  </h3>
+              <div className="glass-card p-6 md:p-8 text-left flex flex-col gap-4">
+                <div className="flex items-center gap-2 border-b border-white/[0.06] pb-3">
+                  <BookOpen className="w-4 h-4 text-[#FF6A00]" />
+                  <h3 className="text-sm font-semibold text-[#f4f4f5]">The Story behind "Lab Buddies"</h3>
                 </div>
-                <div className="flex flex-col gap-3.5 text-xs font-semibold text-neo-dark/75 leading-relaxed">
-                  <p>
-                    During computer lab lectures and group study sessions, sharing code scripts, PDF slides, and terminal stack outputs was incredibly frustrating. Emailing files felt archaic, setting up GitHub repos for simple debugging code took too much time, and using common messaging boards leaked personal emails or phone numbers.
-                  </p>
-                  <p>
-                    We designed <strong>Lab Buddies</strong> to solve this exact bottleneck. It is a lightweight, zero-configuration study room workspace where anyone can launch a collaboration session under a 6-digit PIN. 
-                  </p>
-                  <p>
-                    By combining instant chat messaging and shared sticky notes with file sharing and code helpers, we created the ultimate lightweight study room for students. 
-                  </p>
+                <div className="flex flex-col gap-3 text-sm text-[#71717a] leading-relaxed">
+                  <p>During computer lab lectures and group study sessions, sharing code scripts, PDF slides, and terminal stack outputs was incredibly frustrating. Emailing files felt archaic, setting up GitHub repos for simple debugging code took too much time, and using common messaging boards leaked personal emails or phone numbers.</p>
+                  <p>We designed <span className="text-[#f4f4f5] font-medium">Lab Buddies</span> to solve this exact bottleneck. It is a lightweight, zero-configuration study room workspace where anyone can launch a collaboration session under a 6-digit PIN.</p>
+                  <p>By combining instant chat messaging and shared sticky notes with file sharing and code helpers, we created the ultimate lightweight study room for students.</p>
                 </div>
-              </Card>
+              </div>
             </div>
 
-            {/* Core Values grid */}
-            <div className="gsap-about-values-grid grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            {/* Values Grid */}
+            <div className="gsap-about-values-grid grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
               {values.map((val, idx) => (
-                <div key={idx} className="gsap-about-value flex h-full">
-                  <Card variant={val.color} className="p-5 border-[3px] shadow-neo-sm h-full flex flex-col gap-3">
-                    <div className="w-10 h-10 bg-white border-[2px] border-neo-dark rounded-[10px] shadow-neo-sm flex items-center justify-center flex-shrink-0">
+                <div key={idx} className="gsap-about-value">
+                  <div
+                    className="glow-card p-5 h-full flex flex-col gap-3"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: `${val.accent}15`, border: `1px solid ${val.accent}25`, color: val.accent }}
+                    >
                       {val.icon}
                     </div>
-                    <h4 className="font-archivo text-xs uppercase tracking-wide mt-1">
-                      {val.title}
-                    </h4>
-                    <p className={`text-[11px] font-semibold leading-relaxed ${
-                      val.color === 'purple' ? 'text-white/80' : 'text-neo-dark/70'
-                    }`}>
-                      {val.desc}
-                    </p>
-                  </Card>
+                    <h4 className="text-sm font-semibold text-[#f4f4f5]">{val.title}</h4>
+                    <p className="text-xs text-[#71717a] leading-relaxed">{val.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </section>
-
       </main>
 
-      <footer className="border-t-[3px] border-neo-dark bg-white py-6 mt-auto select-none">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 font-archivo text-xs uppercase tracking-wider text-neo-dark font-black">
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-white/[0.06] py-6 mt-auto select-none bg-[#050608]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#71717a]">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
-            <span>No Signups. No Downloads. Just Share.</span>
-            <span className="hidden sm:inline text-neo-dark/30">|</span>
+            <span className="text-[#a1a1aa]">No Signups. No Downloads. Just Share.</span>
+            <span className="hidden sm:inline text-white/10">|</span>
             <div className="flex gap-4">
-              <Link href="/privacy" className="hover:text-neo-orange hover:underline transition-all text-neo-dark/70">Privacy Policy</Link>
-              <Link href="/terms" className="hover:text-neo-orange hover:underline transition-all text-neo-dark/70">Terms of Service</Link>
+              <Link href="/privacy" className="hover:text-[#f4f4f5] transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-[#f4f4f5] transition-colors">Terms of Service</Link>
             </div>
           </div>
 
-          {/* Powered by Modi Studio */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-neo-dark/50">Powered by</span>
-            <a 
-              href="https://modistudio.online" 
-              target="_blank" 
+            <span className="text-[10px] text-white/30">Powered by</span>
+            <a
+              href="https://modistudio.online"
+              target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-neo-dark text-white rounded-full pl-1 pr-3 py-1 shadow-neo-sm hover:translate-y-[-1px] transition-all cursor-pointer select-none active:translate-y-0 active:shadow-neo-sm"
+              className="flex items-center gap-1.5 bg-white/[0.05] border border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.08] rounded-full pl-1 pr-3 py-1 transition-all"
             >
-              <Image 
-                src="/modi-studio-logo.jpg" 
-                alt="Modi Studio logo - publisher and developer of Lab Buddies" 
-                width={20}
-                height={20}
-                className="w-5 h-5 rounded-full object-cover border border-white/20" 
-              />
-              <span className="font-archivo text-[9.5px] uppercase font-black tracking-wide text-white">
-                Modi Studio
-              </span>
+              <Image src="/modi-studio-logo.jpg" alt="Modi Studio logo" width={20} height={20} className="w-5 h-5 rounded-full object-cover" />
+              <span className="text-[10px] font-medium tracking-wide">Modi Studio</span>
             </a>
           </div>
 
-          <div className="flex items-center gap-1.5 text-neo-green">
-            <Shield className="w-4 h-4 text-neo-green fill-neo-green/10" />
+          <div className="flex items-center gap-1.5 text-[#22C55E]">
+            <Shield className="w-3.5 h-3.5" />
             <span>100% Private</span>
           </div>
         </div>

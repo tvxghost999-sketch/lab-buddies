@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,7 +8,7 @@ import {
   Zap, Copy, LogOut, Menu, X, 
   MessageSquare, FolderOpen, Users, Activity, 
   Code, StickyNote, Settings, Search, Lock, 
-  VolumeX, Trash2, Ban, QrCode 
+  VolumeX, Trash2, Ban, QrCode, Calendar
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
@@ -16,7 +16,7 @@ import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { Switch } from '@/components/ui/input';
 import AdInterstitial from '@/components/AdInterstitial';
-
+import Image from 'next/image';
 
 export default function RoomLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -110,6 +110,36 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
     }
   }, [pin, enterRoom]);
 
+  useEffect(() => {
+    if (!pin || !currentUser || currentUser.role !== 'member') return;
+
+    const tempKey = `temp_active_time_${pin}`;
+    if (typeof window !== 'undefined' && !localStorage.getItem(tempKey)) {
+      localStorage.setItem(tempKey, '0');
+    }
+
+    const interval = setInterval(() => {
+      if (typeof window === 'undefined') return;
+
+      const currentTemp = parseInt(localStorage.getItem(tempKey) || '0', 10);
+      const newTemp = currentTemp + 1;
+      localStorage.setItem(tempKey, newTemp.toString());
+
+      const roll = localStorage.getItem('attendance_roll');
+      if (roll) {
+        const rollKey = `attendance_time_${pin}_${roll}`;
+        const currentRollSec = parseInt(localStorage.getItem(rollKey) || '0', 10);
+        const initialRollSec = currentRollSec > 0 ? currentRollSec : newTemp;
+        const newRollSec = initialRollSec + 1;
+        localStorage.setItem(rollKey, newRollSec.toString());
+
+        socketService.sendAttendanceHeartbeat(pin, roll, newRollSec);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pin, currentUser]);
+
   const knockedRef = useRef(false);
   const seenKnockIds = useRef<Set<string>>(new Set());
 
@@ -130,8 +160,6 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
       }
       socketService.connect(pin, currentUser.name, currentUser.role);
     } else {
-      // Never reset to false — it starts false already
-      // Only knock once per mount
       if (!knockedRef.current) {
         knockedRef.current = true;
         const storedPassword = typeof window !== 'undefined' ? (sessionStorage.getItem('room_password_' + pin) || undefined) : undefined;
@@ -159,7 +187,6 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         if (data.requiresPassword) {
           setShowPasswordPrompt(true);
           setPasswordError(data.message || 'Room is password protected.');
-          // Allow re-knocking if password failed
           knockedRef.current = false;
         } else {
           addToast(data.message || 'Error occurred.', 'error');
@@ -173,7 +200,6 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (currentUser?.role === 'host') {
       socketService.onMemberKnocking((req) => {
-        // Use a ref-based set to deduplicate — immune to stale closures and StrictMode double-invoke
         if (seenKnockIds.current.has(req.socketId)) return;
         seenKnockIds.current.add(req.socketId);
         setKnockingRequests((prev) => [...prev, req]);
@@ -222,6 +248,33 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
     setKnockingRequests((prev) => prev.filter((r) => r.socketId !== targetSocketId));
     addToast('Request declined.', 'warning');
   };
+
+  // Host presence tracking states
+  const isHostOnline = useMemo(() => {
+    if (currentUser?.role === 'host') return true;
+    return members.some(m => m.role === 'host' && m.isOnline);
+  }, [members, currentUser]);
+
+  const [wasHostOffline, setWasHostOffline] = useState(false);
+  const [showHostLiveToast, setShowHostLiveToast] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'host') return;
+
+    if (!isHostOnline) {
+      setWasHostOffline(true);
+      setShowHostLiveToast(false);
+    } else {
+      if (wasHostOffline) {
+        setWasHostOffline(false);
+        setShowHostLiveToast(true);
+        const timer = setTimeout(() => {
+          setShowHostLiveToast(false);
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isHostOnline, wasHostOffline, currentUser]);
 
   // Mobile menu control
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -311,16 +364,16 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   const menuItems = [
     { name: 'Live Feed', path: `/room/${pin}`, icon: <MessageSquare className="w-4 h-4" /> },
     { name: 'Files', path: `/room/${pin}/files`, icon: <FolderOpen className="w-4 h-4" /> },
-    { name: 'Members', path: `/room/${pin}/members`, icon: <Users className="w-4 h-4" /> },
-    { name: 'QR Code', path: `/room/${pin}/qr`, icon: <QrCode className="w-4 h-4" /> },
-    { name: 'Activity', path: `/room/${pin}/activity`, icon: <Activity className="w-4 h-4" /> },
     { name: 'Code Snippets', path: `/room/${pin}/code`, icon: <Code className="w-4 h-4" /> },
     { name: 'Notes', path: `/room/${pin}/notes`, icon: <StickyNote className="w-4 h-4" /> },
+    { name: 'Members', path: `/room/${pin}/members`, icon: <Users className="w-4 h-4" /> },
+    { name: 'Attendance', path: `/room/${pin}/attendance`, icon: <Calendar className="w-4 h-4" /> },
+    { name: 'QR Code', path: `/room/${pin}/qr`, icon: <QrCode className="w-4 h-4" /> },
+    { name: 'Activity', path: `/room/${pin}/activity`, icon: <Activity className="w-4 h-4" /> },
     { name: 'Search', path: `/room/${pin}/search`, icon: <Search className="w-4 h-4" /> },
     { name: 'Settings', path: `/room/${pin}/settings`, icon: <Settings className="w-4 h-4" /> },
   ];
 
-  // Helper to check if item path matches pathname
   const isSelected = (path: string) => {
     if (path === `/room/${pin}`) {
       return pathname === path;
@@ -330,10 +383,10 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
 
   if (!pin || !currentUser) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center p-20 select-none bg-cream">
+      <div className="w-full min-h-screen flex items-center justify-center p-20 select-none bg-[#050608]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-[3.5px] border-neo-dark border-t-neo-yellow rounded-full animate-spin" />
-          <span className="text-xs font-black uppercase text-neo-dark tracking-wide">Syncing Session...</span>
+          <div className="w-10 h-10 border-2 border-white/20 border-t-[#FFD600] rounded-full animate-spin" />
+          <span className="text-xs text-[#a1a1aa] tracking-wide">Syncing Session...</span>
         </div>
       </div>
     );
@@ -341,19 +394,19 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
 
   if (!isSessionApproved && currentUser?.role === 'member') {
     return (
-      <div className="fixed inset-0 bg-neo-dark/85 flex items-center justify-center p-4 z-50 select-none bg-cream">
+      <div className="fixed inset-0 bg-[#050608]/90 flex items-center justify-center p-4 z-50 select-none backdrop-blur-sm">
         {showPasswordPrompt ? (
-          <Card variant="white" className="max-w-md w-full p-8 text-center flex flex-col items-center gap-6 border-[4px] shadow-[6px_6px_0_0_#111111]">
-            <div className="w-16 h-16 rounded-full border-[3px] border-neo-dark bg-neo-yellow flex items-center justify-center text-3xl animate-bounce shadow-neo-sm">
+          <div className="max-w-md w-full p-8 text-center flex flex-col items-center gap-6 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.8)] animate-scale-up">
+            <div className="w-16 h-16 rounded-full bg-[#FFD600]/10 border border-[#FFD600]/20 flex items-center justify-center text-3xl animate-bounce">
               🔑
             </div>
             <div className="flex flex-col gap-2">
-              <h2 className="font-archivo text-xl uppercase text-neo-dark">Enter Password</h2>
-              <p className="text-xs font-bold text-neo-dark/65 max-w-xs leading-normal mx-auto">
+              <h2 className="text-xl font-bold text-[#f4f4f5]">Enter Password</h2>
+              <p className="text-xs text-[#71717a] max-w-xs leading-normal mx-auto">
                 This room is password-protected. Please enter the password provided by the host.
               </p>
               {passwordError && (
-                <span className="text-[10px] font-black uppercase text-neo-red mt-1">{passwordError}</span>
+                <span className="text-[10px] uppercase font-bold text-[#EF4444] mt-1">{passwordError}</span>
               )}
             </div>
             <form onSubmit={handlePasswordSubmit} className="w-full flex flex-col gap-3">
@@ -363,14 +416,14 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                 placeholder="Room Password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="neo-input w-full text-sm font-semibold text-center"
+                className="neo-input w-full text-sm text-center"
                 autoFocus
               />
               <div className="flex gap-3 mt-2">
                 <button
                   type="button"
                   onClick={handleCancelPassword}
-                  className="flex-1 py-2.5 border-[2.5px] border-neo-dark rounded-[10px] bg-white font-archivo text-xs uppercase tracking-wider transition-all font-black text-neo-dark/60 hover:bg-cream"
+                  className="flex-1 py-2.5 rounded-xl border border-white/[0.1] text-xs font-medium text-[#a1a1aa] hover:bg-white/[0.06] transition-all"
                 >
                   Cancel
                 </button>
@@ -378,32 +431,32 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                   type="submit"
                   variant="yellow"
                   size="sm"
-                  className="flex-1 font-archivo uppercase text-xs shadow-neo-sm py-2.5 justify-center"
+                  className="flex-1 text-xs py-2.5 justify-center"
                 >
                   Submit
                 </Button>
               </div>
             </form>
-          </Card>
+          </div>
         ) : (
-          <Card variant="white" className="max-w-md w-full p-8 text-center flex flex-col items-center gap-6 border-[4px] shadow-[6px_6px_0_0_#111111]">
-            <div className="w-16 h-16 rounded-full border-[3px] border-neo-dark bg-neo-yellow flex items-center justify-center text-3xl animate-bounce shadow-neo-sm">
+          <div className="max-w-md w-full p-8 text-center flex flex-col items-center gap-6 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.8)] animate-scale-up">
+            <div className="w-16 h-16 rounded-full bg-[#FFD600]/10 border border-[#FFD600]/20 flex items-center justify-center text-3xl animate-bounce">
               🚪
             </div>
             <div className="flex flex-col gap-2">
-              <h2 className="font-archivo text-xl uppercase text-neo-dark animate-pulse">Waiting for Approval...</h2>
-              <p className="text-xs font-bold text-neo-dark/65 max-w-xs leading-normal mx-auto">
+              <h2 className="text-xl font-bold text-[#f4f4f5] animate-pulse">Waiting for Approval...</h2>
+              <p className="text-xs text-[#71717a] max-w-xs leading-normal mx-auto">
                 Knocked on the door. The host has been notified of your request to join. Please wait.
               </p>
             </div>
-            <div className="w-full flex items-center gap-2 border-[2.5px] border-neo-dark bg-cream rounded-[8px] p-2.5 justify-center text-[10px] font-black uppercase text-neo-dark">
-              <span className="w-2.5 h-2.5 rounded-full bg-neo-orange animate-ping" />
+            <div className="w-full flex items-center gap-2 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 justify-center text-xs text-[#a1a1aa]">
+              <span className="w-2 h-2 rounded-full bg-[#FF6A00] animate-ping" />
               <span>Buddy Name: {currentUser.name} (Room #{pin})</span>
             </div>
             <Button 
               variant="red" 
               size="sm" 
-              className="w-full border-[2.5px] text-xs font-archivo shadow-[2px_2px_0_0_#111111]"
+              className="w-full text-xs justify-center"
               onClick={() => {
                 socketService.disconnect();
                 router.push('/join');
@@ -411,7 +464,7 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
             >
               Leave Queue
             </Button>
-          </Card>
+          </div>
         )}
       </div>
     );
@@ -420,10 +473,10 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   const isHost = currentUser?.role === 'host';
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#FFF9F1] md:bg-white p-4 justify-between select-none">
+    <div className="flex flex-col h-full bg-[#0f0f10] p-4 justify-between select-none">
       <div className="flex flex-col gap-6">
         {/* Navigation list */}
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-1.5">
           {menuItems.map((item) => {
             const selected = isSelected(item.path);
             return (
@@ -431,24 +484,22 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                 key={item.name} 
                 href={item.path} 
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 border-[3px] border-neo-dark rounded-[10px] font-archivo text-xs uppercase tracking-wider transition-all font-black shadow-neo-sm hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-neo ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   selected 
-                    ? 'bg-neo-yellow -translate-x-[2px] -translate-y-[2px] shadow-neo' 
-                    : 'bg-white'
+                    ? 'bg-[#FFD600]/15 text-[#FFD600] border border-[#FFD600]/20' 
+                    : 'text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-white/[0.04]'
                 }`}
               >
                 {item.icon}
-                <span className={selected ? 'underline decoration-[2.5px] decoration-neo-dark underline-offset-4' : ''}>
-                  {item.name}
-                </span>
+                <span>{item.name}</span>
               </Link>
             );
           })}
           <button 
             onClick={handleLeaveRoom}
-            className="flex items-center gap-3 px-4 py-3 border-[3px] border-neo-dark rounded-[10px] font-archivo text-xs uppercase tracking-wider transition-all font-black shadow-neo-sm hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-neo bg-neo-red hover:bg-[#ff5555] text-white mt-1 active:scale-95"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-[#EF4444]/10 border border-[#EF4444]/15 text-[#EF4444] hover:bg-[#EF4444]/20 mt-2 cursor-pointer"
           >
-            <LogOut className="w-4 h-4 text-white" />
+            <LogOut className="w-4 h-4" />
             <span>Leave Room</span>
           </button>
         </nav>
@@ -456,8 +507,8 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         {/* Host Controls Panel */}
         {isHost ? (
           <div className="flex flex-col gap-3">
-            <Card variant="white" className="p-4 flex flex-col gap-3.5">
-              <span className="font-archivo text-[10.5px] uppercase tracking-wider text-neo-dark border-b-[2px] border-neo-dark pb-1.5 font-black">
+            <div className="bg-white/[0.02] border border-white/[0.06] p-4 rounded-2xl flex flex-col gap-3.5">
+              <span className="text-[10px] uppercase tracking-wider text-[#71717a] border-b border-white/[0.06] pb-1.5 font-medium">
                 Host Controls
               </span>
               <div className="flex flex-col gap-3">
@@ -472,9 +523,9 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                   onCheckedChange={handleToggleMute}
                 />
                 <Button 
-                  variant="white" 
+                  variant="outline" 
                   size="sm" 
-                  className="w-full gap-2 border-[2px] text-xs font-archivo"
+                  className="w-full gap-2 text-xs justify-center"
                   onClick={handleClearFeed}
                 >
                   <VolumeX className="w-3.5 h-3.5" />
@@ -483,83 +534,84 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                 <Button 
                   variant="red" 
                   size="sm" 
-                  className="w-full gap-2 border-[2px] text-xs font-archivo"
+                  className="w-full gap-2 text-xs justify-center"
                   onClick={handleDeleteRoom}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Delete Room
                 </Button>
               </div>
-            </Card>
+            </div>
 
             {/* Storage Progress Card */}
-            <Card variant="white" className="p-4 flex flex-col gap-2">
-              <div className="flex justify-between items-center text-[10px] font-black uppercase text-neo-dark">
+            <div className="bg-white/[0.02] border border-white/[0.06] p-4 rounded-2xl flex flex-col gap-2">
+              <div className="flex justify-between items-center text-[10px] text-[#71717a] uppercase">
                 <span>Storage</span>
                 <span>{displayStr} / {limitMB} MB</span>
               </div>
-              <div className="w-full h-3 border-[2.5px] border-neo-dark rounded-full bg-cream overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
                 <div 
-                  className="bg-neo-green h-full rounded-full transition-all duration-300" 
+                  className="bg-[#22C55E] h-full rounded-full transition-all duration-300" 
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-            </Card>
+            </div>
           </div>
         ) : (
-          /* Normal User widgets (Promo / Storage status) */
           <div className="flex flex-col gap-3">
             {/* Storage Progress Card */}
-            <Card variant="white" className="p-4 flex flex-col gap-2">
-              <div className="flex justify-between items-center text-[10px] font-black uppercase text-neo-dark">
+            <div className="bg-white/[0.02] border border-white/[0.06] p-4 rounded-2xl flex flex-col gap-2">
+              <div className="flex justify-between items-center text-[10px] text-[#71717a] uppercase">
                 <span>Storage</span>
                 <span>{displayStr} / {limitMB} MB</span>
               </div>
-              <div className="w-full h-3 border-[2.5px] border-neo-dark rounded-full bg-cream overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
                 <div 
-                  className="bg-neo-green h-full rounded-full transition-all duration-300" 
+                  className="bg-[#22C55E] h-full rounded-full transition-all duration-300" 
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-            </Card>
+            </div>
           </div>
         )}
       </div>
 
       {/* Self-Destruct countdown timer */}
-      <Card variant="orange" className="p-4 flex flex-col items-center gap-1 shadow-neo-sm border-[3px] mt-6">
-        <span className="text-[9.5px] font-black uppercase text-neo-dark tracking-wide">
+      <div className="bg-[#FF6A00]/10 border border-[#FF6A00]/20 p-4 rounded-2xl flex flex-col items-center gap-1.5 mt-6">
+        <span className="text-[10px] uppercase text-[#FF6A00] tracking-wider">
           Room will self-destruct in
         </span>
-        <div className="flex gap-1.5 font-archivo font-black text-sm text-neo-dark">
+        <div className="flex gap-1.5 font-mono font-bold text-lg text-[#FF6A00]">
           <span>{String(timeLeft.hrs).padStart(2, '0')}</span>
           <span>:</span>
           <span>{String(timeLeft.mins).padStart(2, '0')}</span>
           <span>:</span>
           <span>{String(timeLeft.secs).padStart(2, '0')}</span>
         </div>
-        <span className="text-[8px] font-bold text-neo-dark/70 tracking-wider uppercase">
+        <span className="text-[9px] text-[#FF6A00]/80 tracking-wider uppercase font-medium">
           hrs mins secs
         </span>
-      </Card>
+      </div>
 
       {/* Powered by Modi Studio */}
-      <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t-[2.5px] border-neo-dark/10">
-        <span className="text-[9px] font-black uppercase text-neo-dark/50 tracking-wider">
+      <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-white/[0.06]">
+        <span className="text-[9px] uppercase text-white/30 tracking-wider">
           Powered by
         </span>
         <a 
           href="https://modistudio.online"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 bg-neo-dark text-white rounded-full pl-1 pr-3 py-1 shadow-neo-sm hover:translate-y-[-1px] transition-all cursor-pointer active:translate-y-0 active:shadow-neo-sm"
+          className="flex items-center gap-1.5 bg-white/[0.05] border border-white/[0.08] text-white/70 hover:text-white rounded-full pl-1 pr-3 py-1 transition-all"
         >
-          <img 
+          <Image 
             src="/modi-studio-logo.jpg" 
             alt="Modi Studio Logo" 
-            className="w-5 h-5 rounded-full object-cover border border-white/20" 
+            width={20}
+            height={20}
+            className="w-5 h-5 rounded-full object-cover" 
           />
-          <span className="font-archivo text-[9.5px] uppercase font-black tracking-wide text-white">
+          <span className="text-[9.5px] font-medium tracking-wide">
             Modi Studio
           </span>
         </a>
@@ -568,13 +620,13 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   );
 
   return (
-    <div className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#050608] text-[#f4f4f5]">
       {/* Header navbar */}
-      <header className="border-b-[3px] border-neo-dark bg-white h-16 sticky top-0 z-30 flex items-center justify-between">
-        {/* Leftmost cell: Logo (aligned with sidebar width on desktop) */}
-        <div className="h-full hidden md:flex w-64 border-r-[3px] border-neo-dark items-center px-4 bg-white select-none">
-          <Link href="/" className="hover:scale-95 transition-all flex items-center h-full relative z-10">
-            <img src="/logo.png" alt="Lab Buddies Logo" className="h-16 w-auto object-contain max-h-none scale-105 origin-left" />
+      <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl h-16 sticky top-0 z-30 flex items-center justify-between">
+        {/* Leftmost cell: Logo */}
+        <div className="h-full hidden md:flex w-64 border-r border-white/[0.07] items-center px-4 select-none">
+          <Link href="/" className="hover:opacity-85 transition-opacity flex items-center h-full relative z-10">
+            <Image src="/logo.png" alt="Lab Buddies Logo" width={140} height={40} className="h-14 w-auto object-contain scale-105 origin-left" />
           </Link>
         </div>
 
@@ -583,14 +635,14 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
           {/* Mobile Hamburger toggle */}
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="md:hidden p-1.5 border-[2px] border-neo-dark bg-white rounded-md hover:bg-cream"
+            className="md:hidden p-1.5 border border-white/[0.1] bg-white/[0.05] rounded-xl text-white hover:bg-white/[0.08]"
           >
             {isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
 
-          {/* Members online badge (Desktop only) */}
-          <div className="hidden md:flex items-center gap-1.5 bg-white border-[2.5px] border-neo-dark rounded-full px-3 py-1 text-xs font-black text-neo-dark">
-            <span className="w-2.5 h-2.5 rounded-full bg-neo-green animate-pulse flex-shrink-0" />
+          {/* Members online badge */}
+          <div className="hidden md:flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.08] rounded-full px-3 py-1 text-xs text-[#f4f4f5]">
+            <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse flex-shrink-0" />
             <span>{members.length} Members Online</span>
           </div>
         </div>
@@ -599,31 +651,31 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         <div className="pr-3 flex items-center gap-2">
           <Link href={`/room/${pin}/qr`}>
             <button 
-              className="p-1.5 sm:p-2 border-[2px] border-neo-dark bg-white hover:bg-neo-yellow rounded-[8px] transition-all shadow-neo-sm hover:translate-x-[-1px] hover:translate-y-[-1px] active:translate-y-0 active:translate-x-0 flex items-center justify-center"
+              className="p-2 border border-white/[0.08] bg-white/[0.03] hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] rounded-xl transition-all flex items-center justify-center cursor-pointer text-[#a1a1aa]"
               title="View Room QR Code"
             >
-              <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-neo-dark" />
+              <QrCode className="w-4 h-4" />
             </button>
           </Link>
 
-          <div className="flex items-center bg-white border-[2px] sm:border-[2.5px] border-neo-dark rounded-[8px] pl-2.5 sm:pl-3 pr-1.5 sm:pr-2 py-0.5 sm:py-1 shadow-neo-sm select-none">
-            <span className="text-[10px] font-black uppercase text-neo-dark/50 mr-1.5">Pin</span>
-            <span className="font-archivo text-xs sm:text-sm font-black mr-1.5 sm:mr-2 text-neo-dark">{pin}</span>
+          <div className="flex items-center bg-white/[0.03] border border-white/[0.08] rounded-xl pl-3 pr-2 py-1 select-none">
+            <span className="text-[10px] uppercase text-[#71717a] mr-1.5 font-medium">Pin</span>
+            <span className="font-mono text-sm font-bold mr-2 text-[#f4f4f5]">{pin}</span>
             <button 
               onClick={handleCopyPin}
-              className="p-0.5 sm:p-1 border-[1.5px] border-neo-dark bg-cream hover:bg-neo-yellow rounded transition-all active:translate-y-[0.5px] flex items-center justify-center"
+              className="p-1 border border-white/[0.1] bg-white/5 hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] rounded-lg transition-all flex items-center justify-center cursor-pointer text-[#a1a1aa]"
               title="Copy Room PIN"
             >
-              <Copy className="w-3 sm:w-3.5 sm:h-3.5 text-neo-dark" />
+              <Copy className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </header>
 
       {/* Main layout container */}
-      <div className="flex-1 flex relative">
-        {/* Left Sidebar (Desktop: visible, fixed width) */}
-        <aside className="hidden md:block w-64 border-r-[3px] border-neo-dark bg-white min-h-[calc(100dvh-4rem)] flex-shrink-0">
+      <div className="flex-1 flex relative h-[calc(100vh-4rem)] overflow-hidden">
+        {/* Left Sidebar */}
+        <aside className="hidden md:block w-64 border-r border-white/[0.07] bg-[#0f0f10] h-full flex-shrink-0 overflow-y-auto custom-scrollbar">
           {sidebarContent}
         </aside>
 
@@ -637,7 +689,7 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setIsSidebarOpen(false)}
-                className="fixed inset-0 z-40 bg-neo-dark/40 backdrop-blur-[1px] md:hidden"
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
                 style={{ top: '4rem' }}
               />
               {/* Drawer */}
@@ -646,7 +698,7 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed left-0 bottom-0 top-16 z-40 w-64 border-r-[3px] border-neo-dark bg-white md:hidden overflow-y-auto"
+                className="fixed left-0 bottom-0 top-16 z-40 w-64 border-r border-white/[0.07] bg-[#0f0f10] md:hidden overflow-y-auto"
               >
                 {sidebarContent}
               </motion.aside>
@@ -655,7 +707,7 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         </AnimatePresence>
 
         {/* Page Content area */}
-        <main className="flex-1 p-4 sm:p-6 overflow-x-hidden min-h-[calc(100dvh-4rem)]">
+        <main className="flex-1 p-0 md:p-6 overflow-y-auto overflow-x-hidden h-full bg-[#050608]">
           {children}
         </main>
       </div>
@@ -664,20 +716,19 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
       {knockingRequests.length > 0 && (
         <div className="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-sm md:w-full z-50 flex flex-col gap-3 select-none">
           {knockingRequests.map((req) => (
-            <Card 
+            <div 
               key={req.socketId} 
-              variant="white" 
-              className="p-4 border-[3px] shadow-[4px_4px_0_0_#111111] flex items-center justify-between gap-4"
+              className="p-4 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex items-center justify-between gap-4"
             >
               <div className="flex flex-col text-left min-w-0 flex-1">
-                <span className="text-[9px] font-black text-neo-dark/50 uppercase tracking-wide">Knock Request</span>
-                <span className="text-xs font-black text-neo-dark truncate">{req.name} wants to join</span>
+                <span className="text-[9px] text-[#71717a] uppercase tracking-wider font-medium">Knock Request</span>
+                <span className="text-xs font-semibold text-[#f4f4f5] truncate">{req.name} wants to join</span>
               </div>
-              <div className="flex gap-1.5 flex-shrink-0">
+              <div className="flex gap-2 flex-shrink-0">
                 <Button 
                   variant="yellow" 
                   size="sm" 
-                  className="border-[2px] py-1 px-2.5 font-archivo text-[10px] uppercase shadow-[1.5px_1.5px_0_0_#111111] hover:translate-y-0 active:translate-y-0.5 active:shadow-none"
+                  className="py-1 px-2.5 text-[10px]"
                   onClick={() => handleAcceptKnock(req.socketId)}
                 >
                   Accept
@@ -685,13 +736,13 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                 <Button 
                   variant="red" 
                   size="sm" 
-                  className="border-[2px] py-1 px-2.5 font-archivo text-[10px] uppercase shadow-[1.5px_1.5px_0_0_#111111] hover:translate-y-0 active:translate-y-0.5 active:shadow-none"
+                  className="py-1 px-2.5 text-[10px]"
                   onClick={() => handleRejectKnock(req.socketId)}
                 >
                   Decline
                 </Button>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
@@ -711,6 +762,26 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         actionLabel="Expanding Storage Limit"
         showCloseButton={currentUser?.role === 'host'}
       />
+
+      {/* Host Offline Status Banner */}
+      {!isHostOnline && currentUser && currentUser.role !== 'host' && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[999] animate-in slide-in-from-top-4 duration-300 select-none">
+          <div className="flex items-center gap-2 bg-[#EF4444]/15 border border-[#EF4444]/20 text-[#EF4444] px-4 py-2.5 rounded-full text-xs font-bold shadow-[0_8px_32px_rgba(239,68,68,0.15)] backdrop-blur-md">
+            <div className="w-2 h-2 rounded-full bg-[#EF4444] animate-pulse" />
+            <span>Host is offline. Please wait for re-entry...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Host Live Toast Notification */}
+      {showHostLiveToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1000] animate-in slide-in-from-top-4 duration-300 select-none">
+          <div className="flex items-center gap-2 bg-[#22C55E]/15 border border-[#22C55E]/20 text-[#22C55E] px-4 py-2.5 rounded-full text-xs font-bold shadow-[0_8px_32px_rgba(34,197,94,0.15)] backdrop-blur-md">
+            <div className="w-2 h-2 rounded-full bg-[#22C55E] animate-ping" />
+            <span>Host is live now!</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

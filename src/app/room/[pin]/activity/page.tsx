@@ -20,7 +20,6 @@ export default function RoomActivityLog() {
 
   const [eventFilter, setEventFilter] = useState<'all' | 'joins' | 'files' | 'code' | 'controls'>('all');
 
-  // Filter activities based on selection
   const filteredActivities = activities.filter((act) => {
     if (eventFilter === 'all') return true;
     if (eventFilter === 'joins') return act.type === 'join' || act.type === 'leave';
@@ -30,74 +29,75 @@ export default function RoomActivityLog() {
     return true;
   });
 
-  // Resolve timeline icon design
   const getActivityDesign = (type: string) => {
-    let icon = <Info className="w-4 h-4 text-neo-dark" />;
-    let bgColor = 'bg-neo-blue';
-    let borderStyle = 'border-neo-dark';
+    let icon = <Info className="w-4 h-4 text-[#050608]" />;
+    let accent = '#FFD600';
 
     switch (type) {
       case 'join':
-        icon = <UserPlus className="w-4 h-4 text-neo-dark" />;
-        bgColor = 'bg-neo-green';
+        icon = <UserPlus className="w-4 h-4 text-[#050608]" />;
+        accent = '#22C55E';
         break;
       case 'leave':
         icon = <UserMinus className="w-4 h-4 text-white" />;
-        bgColor = 'bg-neo-red';
+        accent = '#EF4444';
         break;
       case 'upload':
         icon = <Upload className="w-4 h-4 text-white" />;
-        bgColor = 'bg-neo-blue';
+        accent = '#4F7CFF';
         break;
       case 'code_share':
-        icon = <Code className="w-4 h-4 text-neo-dark" />;
-        bgColor = 'bg-neo-yellow';
+        icon = <Code className="w-4 h-4 text-[#050608]" />;
+        accent = '#FFD600';
         break;
       case 'lock':
       case 'mute':
         icon = <Lock className="w-4 h-4 text-white" />;
-        bgColor = 'bg-neo-red';
+        accent = '#EF4444';
         break;
       case 'delete':
         icon = <Trash2 className="w-4 h-4 text-white" />;
-        bgColor = 'bg-neo-red';
+        accent = '#EF4444';
         break;
       case 'setting_change':
-        icon = <Settings className="w-4 h-4 text-neo-dark" />;
-        bgColor = 'bg-neo-orange';
+        icon = <Settings className="w-4 h-4 text-[#050608]" />;
+        accent = '#FF6A00';
         break;
       default:
         icon = <Info className="w-4 h-4 text-white" />;
-        bgColor = 'bg-neo-purple';
+        accent = '#8B5CF6';
         break;
     }
 
     return (
-      <div className={`w-9 h-9 rounded-full ${bgColor} border-[2.5px] ${borderStyle} flex items-center justify-center flex-shrink-0 shadow-neo-sm z-10`}>
+      <div 
+        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 z-10 border shadow-md"
+        style={{ backgroundColor: accent, color: '#050608', borderColor: `${accent}20` }}
+      >
         {icon}
       </div>
     );
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start p-4 md:p-0">
       
       {/* Left Column: Room Info panel */}
       <div className="lg:col-span-3 flex flex-col gap-4 select-none">
-        <Card variant="white" className="p-4 flex flex-col gap-3.5 border-[3px]">
-          <span className="font-archivo text-xs uppercase tracking-wider text-neo-dark border-b-[2px] border-neo-dark pb-2">
+        <div className="glass-card p-4 flex flex-col gap-3.5">
+          <span className="text-xs uppercase tracking-wider text-[#a1a1aa] border-b border-white/[0.06] pb-2 font-medium">
             Room Created
           </span>
           <div className="flex flex-col gap-2.5">
-            <div className="flex items-center gap-2 text-xs font-bold text-neo-dark/85">
-              <Calendar className="w-4 h-4 text-neo-orange" />
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#f4f4f5]">
+              <Calendar className="w-4 h-4 text-[#FF6A00]" />
               <span>{activeRoom?.createdAt || 'May 18, 2025, 11:40 AM'}</span>
             </div>
-            <p className="text-xs font-semibold text-neo-dark/65">
-              Created by <strong className="text-neo-dark">{activeRoom?.createdBy || 'Aman (Host)'}</strong>. All data in this room is ephemeral and is cached in user instances only.
+            <p className="text-xs text-[#71717a] leading-relaxed">
+              Created by <strong className="text-[#f4f4f5] font-semibold">{activeRoom?.createdBy || 'Aman (Host)'}</strong>. All data in this room is ephemeral and is cached in user instances only.
             </p>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Center Column: Activities Feed */}
@@ -106,18 +106,18 @@ export default function RoomActivityLog() {
         {/* Title bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
           <div className="flex flex-col gap-1">
-            <h1 className="font-archivo text-2xl uppercase text-neo-dark flex items-center gap-2">
-              <Activity className="w-6 h-6 text-neo-orange" />
+            <h1 className="text-xl sm:text-2xl font-bold text-[#f4f4f5] flex items-center gap-2">
+              <Activity className="w-6 h-6 text-[#FF6A00]" />
               Room Activity
             </h1>
-            <p className="text-xs font-bold text-neo-dark/70">
+            <p className="text-xs text-[#71717a]">
               Chronological log of events and updates inside this room.
             </p>
           </div>
 
           {/* Filter Dropdown */}
-          <div className="flex items-center gap-2 text-xs font-bold">
-            <span className="text-neo-dark/60 uppercase">Filter</span>
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            <span className="text-[#71717a] uppercase">Filter</span>
             <div className="w-44">
               <Select
                 value={eventFilter}
@@ -129,47 +129,45 @@ export default function RoomActivityLog() {
                   { value: 'code', label: 'Code Shares' },
                   { value: 'controls', label: 'Room Controls' }
                 ]}
-                className="py-1 px-3 border-[2.5px] rounded-md font-bold text-xs"
+                className="w-full"
               />
             </div>
           </div>
         </div>
 
         {/* Timeline Log Card */}
-        <Card variant="white" className="p-6 relative">
+        <div className="glass-card p-6 relative">
           
           {/* Vertical Connecting Line (Timeline design) */}
-          <div className="absolute left-[34px] top-8 bottom-8 w-[3px] bg-neo-dark/20 z-0" />
+          <div className="absolute left-[34px] top-8 bottom-8 w-[2px] bg-white/[0.08] z-0" />
 
           {/* List items */}
           <div className="flex flex-col gap-6 relative">
             {filteredActivities.length === 0 ? (
-              <div className="text-center py-10 flex flex-col items-center justify-center gap-2 select-none z-10 bg-white">
+              <div className="text-center py-10 flex flex-col items-center justify-center gap-2 select-none z-10">
                 <span className="text-2xl">⏳</span>
-                <span className="font-archivo text-xs uppercase text-neo-dark">No events logged</span>
-                <p className="text-[10px] font-bold text-neo-dark/50 max-w-xs">
-                  Activities of selected type have not been recorded in this room yet.
+                <span className="text-xs uppercase text-[#a1a1aa] font-semibold">No events logged</span>
+                <p className="text-xs text-[#71717a] max-w-xs">
+                  No activity actions matching this event query have been captured in this room.
                 </p>
               </div>
             ) : (
-              filteredActivities.map((activity, idx) => (
-                <div key={activity.id} className="flex gap-4 items-center relative z-10 group">
-                  {getActivityDesign(activity.type)}
-
-                  {/* Details box */}
-                  <div className="flex-1 flex justify-between items-center gap-4 bg-cream/30 border-[2px] border-neo-dark/10 group-hover:border-neo-dark/35 rounded-lg p-3 transition-colors">
-                    <span className="text-xs font-bold text-neo-dark leading-tight">
-                      {activity.description}
+              filteredActivities.map((act) => (
+                <div key={act._id || act.id} className="flex gap-4 items-center z-10 text-left">
+                  {getActivityDesign(act.type)}
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-xs text-[#f4f4f5] leading-normal">
+                      {act.description}
                     </span>
-                    <span className="text-[10px] text-neo-dark/40 font-black whitespace-nowrap ml-2">
-                      {activity.timestamp}
-                    </span>
+                    <span className="text-[10px] text-[#71717a]">{act.timestamp}</span>
                   </div>
                 </div>
               ))
             )}
           </div>
-        </Card>
+
+        </div>
+
       </div>
 
     </div>

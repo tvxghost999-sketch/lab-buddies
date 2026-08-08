@@ -3,7 +3,6 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import Card from './card';
 
 interface ModalProps {
   isOpen: boolean;
@@ -51,7 +50,7 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-[#111111]/40 backdrop-blur-[2px]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           />
 
           {/* Modal Container */}
@@ -62,25 +61,25 @@ export const Modal: React.FC<ModalProps> = ({
             transition={{ type: 'spring', duration: 0.3 }}
             className={`w-full ${sizeClasses[size]} z-10`}
           >
-            <Card variant="white" hasShadow shadowSize="lg" className="w-full relative overflow-hidden">
+            <div className="w-full relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f0f10] shadow-[0_24px_64px_rgba(0,0,0,0.8)]">
               {/* Header */}
-              <div className="flex items-center justify-between border-b-[3px] border-neo-dark p-4 bg-neo-yellow">
-                <h3 className="font-archivo text-lg text-neo-dark uppercase tracking-wider">
+              <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-4">
+                <h3 className="text-base font-semibold text-[#f4f4f5]">
                   {title}
                 </h3>
                 <button
                   onClick={onClose}
-                  className="p-1 border-[2px] border-neo-dark bg-white rounded-md hover:bg-cream active:translate-y-[1px] active:translate-x-[1px] transition-all"
+                  className="text-white/40 hover:text-white/80 transition-colors p-1 rounded-lg hover:bg-white/[0.06]"
                 >
-                  <X className="w-5 h-5 text-neo-dark" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Content */}
-              <div className="p-6 max-h-[75vh] overflow-y-auto bg-cream">
+              <div className="p-5 max-h-[75vh] overflow-y-auto">
                 {children}
               </div>
-            </Card>
+            </div>
           </motion.div>
         </div>
       )}

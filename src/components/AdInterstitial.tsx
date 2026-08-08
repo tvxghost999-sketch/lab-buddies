@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Sparkles, ShieldCheck } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
+import Image from 'next/image';
 
 interface AdInterstitialProps {
   isOpen: boolean;
@@ -52,16 +53,15 @@ export default function AdInterstitial({
   const percentage = ((5 - countdown) / 5) * 100;
 
   return (
-    <div className="fixed inset-0 bg-neo-dark/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
-      <Card 
-        variant="white" 
-        className="w-full max-w-md border-[3.5px] border-neo-dark shadow-[6px_6px_0_0_#111111] p-5 flex flex-col gap-5 relative bg-[#FFFDF9] max-h-[90vh] overflow-y-auto"
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[9999] flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
+      <div 
+        className="w-full max-w-md border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.8)] p-5 flex flex-col gap-5 relative max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b-[3px] border-neo-dark pb-3">
-          <div className="flex items-center gap-2 text-neo-dark">
-            <Sparkles className="w-4 h-4 text-neo-yellow fill-neo-yellow/30 animate-pulse" />
-            <span className="font-archivo text-xs sm:text-sm font-black uppercase tracking-wider">
+        <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+          <div className="flex items-center gap-2 text-[#f4f4f5]">
+            <Sparkles className="w-4 h-4 text-[#FFD600] animate-pulse" />
+            <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider">
               Sponsor Advertisement
             </span>
           </div>
@@ -69,7 +69,7 @@ export default function AdInterstitial({
             <button 
               type="button" 
               onClick={onClose}
-              className="text-neo-red hover:bg-neo-dark/5 p-1 rounded transition-colors"
+              className="text-[#EF4444] hover:bg-white/[0.06] p-1.5 rounded-lg transition-colors"
               title="Cancel"
             >
               <X className="w-4 h-4" />
@@ -82,36 +82,38 @@ export default function AdInterstitial({
           href="https://modistudio.online" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="border-[3px] border-neo-dark bg-white rounded-[12px] p-4 flex flex-col items-center gap-3 shadow-neo-sm hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-neo transition-all group"
+          className="border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] rounded-2xl p-4 flex flex-col items-center gap-3 transition-all group text-center"
         >
-          <div className="w-14 h-14 rounded-full overflow-hidden border-[2.5px] border-neo-dark bg-[#FFF5E6] flex items-center justify-center flex-shrink-0">
-            <img 
+          <div className="w-14 h-14 rounded-full overflow-hidden border border-white/[0.08] bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+            <Image 
               src="/modi-studio-logo.jpg" 
               alt="Modi Studio Logo" 
+              width={56}
+              height={56}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
           </div>
           <div className="text-center flex flex-col gap-1">
-            <span className="font-archivo text-xs font-black uppercase tracking-wide text-neo-orange group-hover:underline">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#FF6A00] group-hover:underline">
               Modi Studio
             </span>
-            <p className="text-[10.5px] font-bold text-neo-dark leading-tight max-w-[280px]">
+            <p className="text-xs text-[#a1a1aa] leading-relaxed max-w-[280px]">
               Need a modern Web App, Custom E-commerce, or Mobile App built? Contact Modi Studio for premium, custom digital solutions.
             </p>
           </div>
-          <span className="text-[8px] font-black uppercase tracking-wider text-neo-dark/40 bg-neo-dark/5 px-2 py-0.5 rounded-full border border-neo-dark/10">
+          <span className="text-[10px] text-white/40 bg-white/[0.04] px-2.5 py-0.5 rounded-full border border-white/[0.08]">
             Sponsor Banner • Visit Site
           </span>
         </a>
 
         {/* Progress Bar & Timer */}
-        <div className="flex flex-col gap-2 bg-[#FFF9F1] border-[2.5px] border-neo-dark rounded-[10px] p-3 text-center">
-          <span className="text-[10px] font-black uppercase text-neo-dark/80">
+        <div className="flex flex-col gap-2 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 text-center">
+          <span className="text-[10px] uppercase text-[#a1a1aa] tracking-wider">
             {hasFinished ? 'Ready to proceed!' : `${actionLabel} in ${countdown}s...`}
           </span>
-          <div className="w-full h-3 border-[2px] border-neo-dark rounded-full bg-white overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
             <div 
-              className="bg-neo-orange h-full rounded-full transition-all duration-1000 ease-linear"
+              className="bg-[#FF6A00] h-full rounded-full transition-all duration-1000 ease-linear"
               style={{ width: `${percentage}%` }}
             />
           </div>
@@ -123,7 +125,7 @@ export default function AdInterstitial({
             variant="yellow" 
             size="md" 
             onClick={handleProceed}
-            className="w-full border-[2.5px] shadow-[3px_3px_0_0_#111111] uppercase font-archivo font-black py-2.5 disabled:opacity-50 text-xs sm:text-sm"
+            className="w-full shadow-[0_0_20px_rgba(255,214,0,0.2)] uppercase text-xs py-2.5 justify-center"
             disabled={!hasFinished}
           >
             <span>Proceed to {hasFinished ? 'Action' : `(${countdown}s)`}</span>
@@ -131,11 +133,11 @@ export default function AdInterstitial({
         </div>
 
         {/* Bottom Banner */}
-        <div className="flex items-center justify-center gap-1 text-[9px] font-black uppercase text-neo-dark/40">
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-white/30 uppercase select-none">
           <ShieldCheck className="w-3.5 h-3.5" />
           <span>Verified Secure Ad Space</span>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

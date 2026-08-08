@@ -9,6 +9,7 @@ import Card from '@/components/ui/card';
 import { Input, Select } from '@/components/ui/input';
 import { useRoomStore } from '@/store/roomStore';
 import AdInterstitial from '@/components/AdInterstitial';
+import Image from 'next/image';
 
 
 export default function CreateRoomPage() {
@@ -87,15 +88,15 @@ export default function CreateRoomPage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark">
+    <div className="flex flex-col min-h-screen bg-[#050608] text-[#f4f4f5]">
       {/* Header */}
-      <header className="border-b-[3px] border-neo-dark bg-white">
+      <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="hover:scale-95 transition-all flex items-center h-full relative z-10">
-            <img src="/logo.png" alt="Lab Buddies Logo" className="h-16 sm:h-20 w-auto object-contain max-h-none scale-105 origin-left" />
+          <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
+            <Image src="/logo.png" alt="Lab Buddies Logo" width={150} height={48} className="h-16 sm:h-20 w-auto object-contain scale-105 origin-left" />
           </Link>
           <Link href="/">
-            <button className="flex items-center gap-1.5 font-archivo text-xs uppercase tracking-wider text-neo-dark px-3 py-1.5 border-[3px] border-neo-dark rounded-[8px] bg-white shadow-neo-sm hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-neo active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all font-black">
+            <button className="flex items-center gap-1.5 text-sm text-[#a1a1aa] hover:text-[#f4f4f5] px-3 py-1.5 rounded-lg border border-white/[0.08] hover:bg-white/[0.06] transition-all">
               <ArrowLeft className="w-4 h-4" />
               Back
             </button>
@@ -105,16 +106,16 @@ export default function CreateRoomPage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
           {/* Left Column - Form Card */}
           <div className="lg:col-span-7 flex flex-col gap-6">
-            <Card variant="white" className="p-6 sm:p-8">
+            <div className="glass-card p-6 sm:p-8">
               <div className="flex flex-col gap-2 mb-6">
-                <h1 className="font-archivo text-2xl sm:text-3xl uppercase text-neo-dark">
+                <h1 className="text-2xl sm:text-3xl font-bold text-[#f4f4f5]">
                   Create a New Room
                 </h1>
-                <p className="text-sm font-bold text-neo-dark/70">
+                <p className="text-sm text-[#71717a]">
                   Set up your room and start sharing with your buddies instantly.
                 </p>
               </div>
@@ -122,30 +123,30 @@ export default function CreateRoomPage() {
               <form onSubmit={handleCreate} className="flex flex-col gap-5">
                 {/* Host Name Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-black uppercase tracking-wider text-neo-dark">Your Nickname</label>
+                  <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Your Nickname</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Aman, Rohit..."
                     value={hostName}
                     onChange={(e) => setHostName(e.target.value)}
-                    className="neo-input w-full text-sm font-semibold"
+                    className="neo-input w-full text-sm"
                   />
-                  <span className="text-[10.5px] font-bold text-neo-dark/60">Choose a name that other members will recognize.</span>
+                  <span className="text-[10.5px] text-[#52525b]">Choose a name that other members will recognize.</span>
                 </div>
 
                 {/* Room Name Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-black uppercase tracking-wider text-neo-dark">Room Name</label>
+                  <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Room Name</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. lab-row-1"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="neo-input w-full text-sm font-semibold"
+                    className="neo-input w-full text-sm"
                   />
-                  <span className="text-[10.5px] font-bold text-neo-dark/60">Give your room a name so others know what it's for.</span>
+                  <span className="text-[10.5px] text-[#52525b]">Give your room a name so others know what it&apos;s for.</span>
                 </div>
 
                 {/* Grid Inputs: Max Members & Timer */}
@@ -157,7 +158,7 @@ export default function CreateRoomPage() {
                       value={maxMembers}
                       onChange={(e) => setMaxMembers(Number(e.target.value))}
                     />
-                    <span className="text-[10px] font-bold text-neo-dark/60">Maximum number of students that can join.</span>
+                    <span className="text-[10px] text-[#52525b]">Maximum number of students that can join.</span>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -167,121 +168,91 @@ export default function CreateRoomPage() {
                       value={autoDeleteTimer}
                       onChange={(e) => setAutoDeleteTimer(e.target.value)}
                     />
-                    <span className="text-[10px] font-bold text-neo-dark/60">Room and all data will be deleted after the selected time.</span>
+                    <span className="text-[10px] text-[#52525b]">Room and all data will be deleted after the selected time.</span>
                   </div>
                 </div>
 
                 {/* Optional Room Password */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-black uppercase tracking-wider text-neo-dark">Room Password (Optional)</label>
+                  <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Room Password (Optional)</label>
                   <input
                     type="password"
                     placeholder="e.g. 123456 (Leave blank for no password)"
                     value={roomPassword}
                     onChange={(e) => setRoomPassword(e.target.value)}
-                    className="neo-input w-full text-sm font-semibold"
+                    className="neo-input w-full text-sm"
                   />
-                  <span className="text-[10.5px] font-bold text-neo-dark/60">If set, users will need to enter this password to join.</span>
+                  <span className="text-[10.5px] text-[#52525b]">If set, users will need to enter this password to join.</span>
                 </div>
 
-                <Button type="submit" variant="yellow" size="lg" className="w-full gap-2 mt-2">
+                <Button type="submit" variant="yellow" size="lg" className="w-full gap-2 mt-2 shadow-[0_0_20px_rgba(255,214,0,0.2)]">
                   <span>Create Room</span>
                   <ArrowRight className="w-5 h-5" />
                 </Button>
 
-                <div className="flex items-center justify-center gap-1.5 text-[11px] font-black text-neo-dark/70 mt-2">
-                  <ShieldCheck className="w-4 h-4 text-neo-green fill-neo-green/10" />
+                <div className="flex items-center justify-center gap-1.5 text-xs text-[#71717a] mt-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#22C55E]" />
                   <span>You will become the host of this room.</span>
                 </div>
               </form>
-            </Card>
+            </div>
           </div>
 
           {/* Right Column - FAQ Sidebar */}
           <div className="lg:col-span-5 flex flex-col gap-6">
-            <Card variant="white" className="p-6 flex flex-col gap-6 relative overflow-hidden h-full">
+            <div className="glass-card p-6 flex flex-col gap-6 relative overflow-hidden h-full">
               {/* Heading Badge */}
-              <div className="bg-neo-purple text-white px-3 py-1.5 border-[2px] border-neo-dark rounded-md self-start text-[11px] font-black uppercase tracking-wider shadow-neo-sm">
+              <div className="bg-[#8B5CF6]/15 text-[#8B5CF6] border border-[#8B5CF6]/20 px-3 py-1.5 rounded-full self-start text-xs font-medium">
                 Why Create a Room?
               </div>
 
-              {/* Bullet list of advantages */}
+              {/* Bullet list */}
               <div className="flex flex-col gap-5">
                 {[
-                  {
-                    title: 'Become the Host',
-                    desc: 'Control your room, mute members, and manage room settings.',
-                    color: '#FFD600', // Yellow
-                    icon: <UserCheck className="w-5 h-5 text-neo-dark" />
-                  },
-                  {
-                    title: 'Share Instantly',
-                    desc: 'Share code snippets, files, and notes in real-time with zero latency.',
-                    color: '#FF6A00', // Orange
-                    icon: <Zap className="w-5 h-5 text-neo-dark" />
-                  },
-                  {
-                    title: 'No Signups Needed',
-                    desc: 'Classmates can join in one click with a simple 6-digit room PIN.',
-                    color: '#4F7CFF', // Blue
-                    icon: <Shield className="w-5 h-5 text-white" />
-                  },
-                  {
-                    title: 'Auto Cleanup',
-                    desc: 'Data automatically self-destructs after the timer, leaving no footprint.',
-                    color: '#EF4444', // Red
-                    icon: <Trash2 className="w-5 h-5 text-white" />
-                  }
+                  { title: 'Become the Host', desc: 'Control your room, mute members, and manage room settings.', color: '#FFD600', icon: <UserCheck className="w-4 h-4" /> },
+                  { title: 'Share Instantly', desc: 'Share code snippets, files, and notes in real-time with zero latency.', color: '#FF6A00', icon: <Zap className="w-4 h-4" /> },
+                  { title: 'No Signups Needed', desc: 'Classmates can join in one click with a simple 6-digit room PIN.', color: '#4F7CFF', icon: <Shield className="w-4 h-4" /> },
+                  { title: 'Auto Cleanup', desc: 'Data automatically self-destructs after the timer, leaving no footprint.', color: '#EF4444', icon: <Trash2 className="w-4 h-4" /> }
                 ].map((item, idx) => (
-                  <div key={idx} className="flex gap-4 items-start">
-                    <div 
-                      className="w-10 h-10 rounded-full border-[2.5px] border-neo-dark flex items-center justify-center flex-shrink-0 shadow-neo-sm"
-                      style={{ backgroundColor: item.color }}
+                  <div key={idx} className="flex gap-3 items-start">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${item.color}15`, border: `1px solid ${item.color}25`, color: item.color }}
                     >
                       {item.icon}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-black text-neo-dark uppercase tracking-wider leading-none mb-1">
-                        {item.title}
-                      </span>
-                      <p className="text-xs font-bold text-neo-dark/70">
-                        {item.desc}
-                      </p>
+                      <span className="text-sm font-semibold text-[#f4f4f5] mb-0.5">{item.title}</span>
+                      <p className="text-xs text-[#71717a]">{item.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Sun star decoration */}
-              <div className="absolute top-4 right-4 text-neo-yellow animate-pulse">
-                <Star className="w-8 h-8 fill-neo-yellow text-neo-dark border-3" />
-              </div>
-
-              {/* Playful Illustration bottom container */}
-              <div className="mt-auto pt-6 flex items-end justify-between border-t-[2.5px] border-neo-dark border-dashed">
+              {/* Bottom status */}
+              <div className="mt-auto pt-5 flex items-end justify-between border-t border-white/[0.06]">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-black uppercase text-neo-dark/50">Room Status</span>
+                  <span className="text-[10px] uppercase text-[#52525b] tracking-wider">Room Status</span>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-neo-green animate-ping" />
-                    <span className="text-[11px] font-black text-neo-dark">Ready to deploy</span>
+                    <div className="w-2 h-2 rounded-full bg-[#22C55E] animate-ping" />
+                    <span className="text-xs text-[#22C55E]">Ready to deploy</span>
                   </div>
                 </div>
-                {/* Mini illustration */}
-                <div className="relative w-36 h-24 bg-neo-green/10 border-[2.5px] border-neo-dark border-dashed rounded-[10px] flex items-center justify-center font-archivo text-xs uppercase font-black text-neo-dark">
+                <div className="relative w-36 h-16 bg-white/[0.03] border border-white/[0.06] border-dashed rounded-xl flex items-center justify-center text-xs text-[#52525b]">
                   💬 room builder
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
 
         </div>
       </main>
 
-      <AdInterstitial 
-        isOpen={isAdOpen} 
-        onComplete={proceedWithCreation} 
-        onClose={() => setIsAdOpen(false)} 
-        actionLabel="Creating Room" 
+      <AdInterstitial
+        isOpen={isAdOpen}
+        onComplete={proceedWithCreation}
+        onClose={() => setIsAdOpen(false)}
+        actionLabel="Creating Room"
       />
     </div>
   );

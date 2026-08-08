@@ -7,7 +7,6 @@ import {
   Settings, CheckCircle, ShieldAlert, Sparkles 
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
-import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 
 export default function MembersPage() {
@@ -27,12 +26,10 @@ export default function MembersPage() {
 
   const isHost = currentUser?.role === 'host';
 
-  // Filter members by search query
   const filteredMembers = members.filter((m) =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Invite link sharing helper
   const handleInviteLink = async () => {
     const url = `${window.location.origin}/room/${pin}`;
     const shareData = {
@@ -57,52 +54,51 @@ export default function MembersPage() {
     }
   };
 
-
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 md:p-0">
       
       {/* Title bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
         <div className="flex flex-col gap-1">
-          <h1 className="font-archivo text-2xl uppercase text-neo-dark flex items-center gap-2">
-            <Users className="w-6 h-6 text-neo-orange" />
+          <h1 className="text-xl sm:text-2xl font-bold text-[#f4f4f5] flex items-center gap-2">
+            <Users className="w-6 h-6 text-[#FF6A00]" />
             Members ({members.length})
           </h1>
-          <p className="text-xs font-bold text-neo-dark/70">
+          <p className="text-xs text-[#71717a]">
             List of users currently active in this room.
           </p>
         </div>
 
         <div className="flex gap-2">
-          <Button variant="white" size="sm" className="gap-1 border-[2.5px] shadow-[2px_2px_0_0_#111111]" onClick={handleInviteLink}>
+          <Button variant="white" size="sm" className="gap-1" onClick={handleInviteLink}>
             <span>Invite Link</span>
           </Button>
         </div>
       </div>
 
       {/* Toolbar */}
-      <Card variant="white" className="p-4 flex items-center justify-between shadow-neo-sm">
+      <div className="p-4 flex items-center justify-between bg-[#0f0f10] border border-white/[0.08] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neo-dark/50" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
           <input
             type="text"
             placeholder="Search members..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="neo-input !pl-10 pr-4 py-2 text-xs w-full font-semibold"
+            className="neo-input !pl-9 pr-4 py-2 text-sm w-full"
           />
         </div>
-        <div className="hidden sm:block text-xs font-black text-neo-dark/60 select-none">
+        <div className="hidden sm:block text-xs text-[#71717a] select-none">
           Showing {filteredMembers.length} of {members.length} members
         </div>
-      </Card>
+      </div>
 
       {/* Members Directory Table Container (Desktop view) */}
-      <Card variant="white" className="hidden md:block overflow-hidden">
+      <div className="hidden md:block overflow-hidden border border-white/[0.08] bg-[#0f0f10] rounded-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse select-none">
             <thead>
-              <tr className="bg-cream border-b-[3px] border-neo-dark font-archivo text-[11px] uppercase tracking-wider text-neo-dark font-black">
+              <tr className="bg-white/[0.02] border-b border-white/[0.08] text-[11px] uppercase tracking-wider text-[#a1a1aa]">
                 <th className="p-4">Member</th>
                 <th className="p-4">Role</th>
                 <th className="p-4">Joined At</th>
@@ -110,26 +106,26 @@ export default function MembersPage() {
                 {isHost && <th className="p-4 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y-[2.5px] divide-neo-dark font-semibold text-xs text-neo-dark">
+            <tbody className="divide-y divide-white/[0.06] text-xs text-[#a1a1aa]">
               {filteredMembers.map((member) => {
                 const isMe = member.name === currentUser?.name;
                 return (
-                  <tr key={member._id || member.id} className="hover:bg-cream/35 transition-colors">
+                  <tr key={member._id || member.id} className="hover:bg-white/[0.02] transition-colors">
                     {/* User profile */}
                     <td className="p-4 flex items-center gap-2.5">
                       <div 
-                        className="w-8 h-8 rounded-full border-[2.5px] border-neo-dark flex items-center justify-center font-archivo text-xs font-black uppercase"
+                        className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-xs font-bold uppercase"
                         style={{ 
-                          backgroundColor: member.role === 'host' ? '#FFD600' : '#4F7CFF',
-                          color: member.role === 'host' ? '#111111' : '#FFFFFF'
+                          backgroundColor: member.role === 'host' ? 'rgba(255,214,0,0.15)' : 'rgba(79,124,255,0.15)',
+                          color: member.role === 'host' ? '#FFD600' : '#4F7CFF'
                         }}
                       >
                         {member.name[0]}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-black flex items-center gap-1.5">
+                        <span className="font-semibold text-[#f4f4f5] flex items-center gap-1.5">
                           {isMe ? 'You' : member.name}
-                          {isMe && <span className="text-[10px] text-neo-dark/50 font-semibold uppercase">({currentUser?.role})</span>}
+                          {isMe && <span className="text-[10px] text-[#71717a] font-normal uppercase">({currentUser?.role})</span>}
                         </span>
                       </div>
                     </td>
@@ -137,81 +133,88 @@ export default function MembersPage() {
                     {/* Role tag */}
                     <td className="p-4">
                       {member.role === 'host' ? (
-                        <span className="bg-neo-yellow text-neo-dark text-[9px] font-black border-[1.5px] border-neo-dark rounded px-2 py-0.5 uppercase tracking-wide inline-flex items-center gap-1">
-                          <Crown className="w-3.5 h-3.5 fill-neo-dark" />
+                        <span className="bg-[#FFD600]/15 text-[#FFD600] text-[9px] font-semibold border border-[#FFD600]/25 rounded px-2 py-0.5 uppercase tracking-wide inline-flex items-center gap-1">
+                          <Crown className="w-3.5 h-3.5 fill-[#FFD600]/10" />
                           Host
                         </span>
                       ) : (
-                        <span className="text-neo-dark/60 uppercase text-[10px] font-black">
+                        <span className="text-[#71717a] uppercase text-[10px] font-semibold">
                           Member
                         </span>
                       )}
                     </td>
 
-                    {/* Joined At time */}
-                    <td className="p-4 text-neo-dark/60 font-medium">
-                      {member.joinedAt}
+                    {/* Joined At */}
+                    <td className="p-4 font-mono text-[10px] text-[#71717a]">
+                      {member.joinedAt || '12:00 PM'}
                     </td>
 
-                    {/* Online status badge */}
+                    {/* Status */}
                     <td className="p-4">
-                      <span className="bg-neo-green/10 border-[1.5px] border-neo-green text-neo-green font-archivo text-[9.5px] font-black px-2 py-0.5 rounded uppercase tracking-wide">
-                        Online
-                      </span>
+                      {member.isMuted ? (
+                        <span className="bg-[#EF4444]/15 text-[#EF4444] text-[9px] font-semibold border border-[#EF4444]/25 rounded px-2 py-0.5 uppercase tracking-wide inline-flex items-center gap-1">
+                          <MicOff className="w-3 h-3" />
+                          Muted
+                        </span>
+                      ) : (
+                        <span className="bg-[#22C55E]/15 text-[#22C55E] text-[9px] font-semibold border border-[#22C55E]/25 rounded px-2 py-0.5 uppercase tracking-wide inline-flex items-center gap-1">
+                          <Mic className="w-3 h-3" />
+                          Active
+                        </span>
+                      )}
                     </td>
 
-                    {/* Actions (Host controls only) */}
+                    {/* Action Panel */}
                     {isHost && (
                       <td className="p-4 text-right">
-                        {member.role === 'host' ? (
-                          <span className="text-neo-dark/30 font-bold">—</span>
+                        {isMe ? (
+                          <span className="text-[10px] text-[#52525b] uppercase font-bold pr-2">host avatar</span>
                         ) : (
-                          <div className="flex justify-end gap-2">
-                            {/* Transfer Host Crown */}
-                            <button
-                              onClick={() => {
-                                showConfirm(
-                                  'Transfer Host',
-                                  `Transfer host permissions to ${member.name}? You will lose host controls.`,
-                                  () => transferHost(member._id || member.id)
-                                );
-                              }}
-                              className="p-1.5 border-[2px] border-neo-dark bg-neo-yellow hover:bg-yellow-400 text-neo-dark rounded shadow-[2px_2px_0_0_#111111] hover:-translate-y-0.5 active:translate-y-0 transition-colors"
-                              title="Transfer host permissions"
-                            >
-                              <Crown className="w-4 h-4 fill-neo-dark" />
-                            </button>
-
-                            {/* Mute member toggle */}
+                          <div className="flex justify-end gap-1.5">
                             <button
                               onClick={() => {
                                 showConfirm(
                                   member.isMuted ? 'Unmute Member' : 'Mute Member',
-                                  `Are you sure you want to ${member.isMuted ? 'unmute' : 'mute'} ${member.name}'s chat permissions?`,
+                                  `Are you sure you want to ${member.isMuted ? 'unmute' : 'mute'} ${member.name}?`,
                                   () => toggleMuteMember(member._id || member.id)
                                 );
                               }}
-                              className={`p-1.5 border-[2px] border-neo-dark rounded hover:bg-cream transition-colors shadow-[2px_2px_0_0_#111111] hover:-translate-y-0.5 active:translate-y-0 ${
-                                member.isMuted ? 'bg-neo-red text-white' : 'bg-white text-neo-dark'
+                              className={`p-1.5 border rounded-xl transition-all active:scale-95 ${
+                                member.isMuted 
+                                  ? 'bg-[#22C55E]/10 border-[#22C55E]/20 text-[#22C55E] hover:bg-[#22C55E]/20' 
+                                  : 'bg-[#EF4444]/10 border-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444]/20'
                               }`}
-                              title={member.isMuted ? 'Unmute member chat' : 'Mute member chat'}
+                              title={member.isMuted ? 'Unmute Member' : 'Mute Member'}
                             >
-                              {member.isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                              {member.isMuted ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
                             </button>
 
-                            {/* Ban/Kick member */}
                             <button
                               onClick={() => {
                                 showConfirm(
-                                  'Remove Member',
-                                  `Remove ${member.name} from this room?`,
+                                  'Transfer Host',
+                                  `Are you sure you want to transfer host permissions to ${member.name}? This action cannot be undone.`,
+                                  () => transferHost(member._id || member.id)
+                                );
+                              }}
+                              className="p-1.5 border border-white/[0.1] bg-white/5 hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] rounded-xl text-[#a1a1aa] transition-all active:scale-95"
+                              title="Transfer Host Permissions"
+                            >
+                              <Crown className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                showConfirm(
+                                  'Kick Member',
+                                  `Are you sure you want to kick ${member.name} out of this study room?`,
                                   () => kickMember(member._id || member.id)
                                 );
                               }}
-                              className="p-1.5 border-[2px] border-neo-dark bg-neo-red hover:bg-red-600 text-white rounded shadow-[2px_2px_0_0_#111111] hover:-translate-y-0.5 active:translate-y-0 transition-colors"
-                              title="Ban member"
+                              className="p-1.5 border border-[#EF4444]/20 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] rounded-xl transition-all active:scale-95"
+                              title="Kick Member"
                             >
-                              <Ban className="w-4 h-4" />
+                              <Ban className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -223,138 +226,117 @@ export default function MembersPage() {
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
 
-      {/* Mobile Card List (shown on mobile, hidden on desktop) */}
-      <div className="flex flex-col gap-3 md:hidden">
+      {/* Cards list representation (Mobile view) */}
+      <div className="flex flex-col gap-4 md:hidden">
         {filteredMembers.map((member) => {
           const isMe = member.name === currentUser?.name;
           return (
             <div 
-              key={member._id || member.id} 
-              className="p-4 border-[2.5px] border-neo-dark bg-white rounded-[12px] flex flex-col gap-3 shadow-[2px_2px_0_0_#111111]"
+              key={member._id || member.id}
+              className="border border-white/[0.08] bg-[#0f0f10] rounded-2xl p-4 flex flex-col gap-4"
             >
-              {/* Member Profile Row */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
+              {/* Member Card Header */}
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <div className="flex items-center gap-2.5">
                   <div 
-                    className="w-8 h-8 rounded-full border-[2.5px] border-neo-dark flex items-center justify-center font-archivo text-xs font-black uppercase flex-shrink-0"
+                    className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-xs font-bold uppercase"
                     style={{ 
-                      backgroundColor: member.role === 'host' ? '#FFD600' : '#4F7CFF',
-                      color: member.role === 'host' ? '#111111' : '#FFFFFF'
+                      backgroundColor: member.role === 'host' ? 'rgba(255,214,0,0.15)' : 'rgba(79,124,255,0.15)',
+                      color: member.role === 'host' ? '#FFD600' : '#4F7CFF'
                     }}
                   >
                     {member.name[0]}
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-black text-xs text-neo-dark flex items-center gap-1">
-                      <span className="truncate">{isMe ? 'You' : member.name}</span>
-                      {isMe && <span className="text-[10px] text-neo-dark/50 font-semibold uppercase flex-shrink-0">({currentUser?.role})</span>}
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-semibold text-[#f4f4f5] flex items-center gap-1.5">
+                      {isMe ? 'You' : member.name}
                     </span>
-                    <span className="text-[10px] text-neo-dark/50 font-medium">Joined {member.joinedAt}</span>
+                    <span className="text-[10px] text-[#71717a] font-normal uppercase">
+                      Role: {member.role}
+                    </span>
                   </div>
                 </div>
 
-                {/* Role badge */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {member.role === 'host' ? (
-                    <span className="bg-neo-yellow text-neo-dark text-[8px] font-black border-[1.5px] border-neo-dark rounded px-1.5 py-0.5 uppercase tracking-wide flex items-center gap-0.5">
-                      <Crown className="w-3 h-3 fill-neo-dark" />
+                <div className="flex items-center gap-2">
+                  {member.role === 'host' && (
+                    <span className="bg-[#FFD600]/15 text-[#FFD600] text-[9px] font-semibold border border-[#FFD600]/25 rounded px-2 py-0.5 uppercase tracking-wide inline-flex items-center gap-1">
+                      <Crown className="w-3.5 h-3.5 fill-[#FFD600]/10" />
                       Host
                     </span>
+                  )}
+                  {member.isMuted ? (
+                    <span className="bg-[#EF4444]/15 text-[#EF4444] text-[9px] font-semibold border border-[#EF4444]/25 rounded px-2 py-0.5 uppercase tracking-wide inline-flex items-center gap-1">
+                      <MicOff className="w-3 h-3" />
+                      Muted
+                    </span>
                   ) : (
-                    <span className="bg-cream/80 text-neo-dark/60 uppercase text-[9px] font-black border border-neo-dark/15 rounded px-1.5 py-0.5">
-                      Member
+                    <span className="bg-[#22C55E]/15 text-[#22C55E] text-[9px] font-semibold border border-[#22C55E]/25 rounded px-2 py-0.5 uppercase tracking-wide inline-flex items-center gap-1">
+                      <Mic className="w-3 h-3" />
+                      Active
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Status and Action Buttons */}
-              <div className="flex items-center justify-between pt-2 border-t border-neo-dark/10">
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-neo-green animate-pulse" />
-                  <span className="text-[10px] font-black uppercase text-neo-green tracking-wide">Online</span>
-                </div>
-
-                {/* Actions (Host controls only) */}
-                {isHost && member.role !== 'host' && (
-                  <div className="flex gap-2">
-                    {/* Transfer Host Crown */}
-                    <button
-                      onClick={() => {
-                        showConfirm(
-                          'Transfer Host',
-                          `Transfer host permissions to ${member.name}? You will lose host controls.`,
-                          () => transferHost(member._id || member.id)
-                        );
-                      }}
-                      className="p-1.5 border-[2px] border-neo-dark bg-neo-yellow hover:bg-yellow-400 text-neo-dark rounded shadow-[1.5px_1.5px_0_0_#111111] active:translate-y-0.5 transition-transform"
-                      title="Transfer host permissions"
-                    >
-                      <Crown className="w-3.5 h-3.5 fill-neo-dark" />
-                    </button>
-
-                    {/* Mute member toggle */}
-                    <button
-                      onClick={() => {
-                        showConfirm(
-                          member.isMuted ? 'Unmute Member' : 'Mute Member',
-                          `Are you sure you want to ${member.isMuted ? 'unmute' : 'mute'} ${member.name}'s chat permissions?`,
-                          () => toggleMuteMember(member._id || member.id)
-                        );
-                      }}
-                      className={`p-1.5 border-[2px] border-neo-dark rounded transition-colors shadow-[1.5px_1.5px_0_0_#111111] active:translate-y-0.5 ${
-                        member.isMuted ? 'bg-neo-red text-white' : 'bg-white text-neo-dark'
-                      }`}
-                      title={member.isMuted ? 'Unmute member chat' : 'Mute member chat'}
-                    >
-                      {member.isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                    </button>
-
-                    {/* Ban/Kick member */}
-                    <button
-                      onClick={() => {
-                        showConfirm(
-                          'Remove Member',
-                          `Remove ${member.name} from this room?`,
-                          () => kickMember(member._id || member.id)
-                        );
-                      }}
-                      className="p-1.5 border-[2px] border-neo-dark bg-neo-red hover:bg-red-600 text-white rounded shadow-[1.5px_1.5px_0_0_#111111] active:translate-y-0.5 transition-transform"
-                      title="Ban member"
-                    >
-                      <Ban className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
+              {/* Joined At timestamp */}
+              <div className="flex justify-between items-center text-xs text-[#71717a] select-none text-left">
+                <span>Joined At</span>
+                <span className="font-mono text-[#a1a1aa]">{member.joinedAt || '12:00 PM'}</span>
               </div>
+
+              {/* Host actions mobile controls */}
+              {isHost && !isMe && (
+                <div className="flex gap-2 border-t border-white/[0.06] pt-3.5 mt-0.5 justify-end">
+                  <Button
+                    variant="white"
+                    size="sm"
+                    onClick={() => {
+                      showConfirm(
+                        member.isMuted ? 'Unmute Member' : 'Mute Member',
+                        `Are you sure you want to ${member.isMuted ? 'unmute' : 'mute'} ${member.name}?`,
+                        () => toggleMuteMember(member._id || member.id)
+                      );
+                    }}
+                    className="flex-1 py-2 text-xs font-semibold justify-center"
+                  >
+                    {member.isMuted ? 'Unmute' : 'Mute'}
+                  </Button>
+                  <Button
+                    variant="orange"
+                    size="sm"
+                    onClick={() => {
+                      showConfirm(
+                        'Transfer Host',
+                        `Are you sure you want to transfer host permissions to ${member.name}? This action cannot be undone.`,
+                        () => transferHost(member._id || member.id)
+                      );
+                    }}
+                    className="flex-1 py-2 text-xs font-semibold justify-center"
+                  >
+                    Make Host
+                  </Button>
+                  <Button
+                    variant="red"
+                    size="sm"
+                    onClick={() => {
+                      showConfirm(
+                        'Kick Member',
+                        `Are you sure you want to kick ${member.name} out of this study room?`,
+                        () => kickMember(member._id || member.id)
+                      );
+                    }}
+                    className="flex-1 py-2 text-xs font-semibold justify-center"
+                  >
+                    Kick
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-
-      {/* Host Notice Panel */}
-      {isHost && (
-        <Card variant="cream" className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 select-none border-dashed">
-          <div className="flex items-center gap-2.5 text-xs text-neo-dark">
-            <Crown className="w-5 h-5 text-neo-yellow fill-neo-yellow/30" />
-            <span className="font-bold">
-              <strong>You are the host:</strong> You can mute chatter, delete files, lock access or scrub feed history.
-            </span>
-          </div>
-          <Button 
-            variant="dark" 
-            size="sm" 
-            className="border-[2px] text-xs font-archivo gap-1"
-            onClick={() => router.push(`/room/${pin}/settings`)}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>Manage Room</span>
-          </Button>
-        </Card>
-      )}
-
     </div>
   );
 }

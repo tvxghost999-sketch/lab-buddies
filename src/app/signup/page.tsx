@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, User, Mail, Lock, Globe, MapPin, Zap } from 'lucide-react';
+import { ArrowRight, User, Mail, Lock, Globe, MapPin, ArrowLeft } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
+import Image from 'next/image';
 
-// Custom Select Dropdown with Neo-Brutalist styling
 interface CustomSelectProps {
   label: string;
   icon: React.ReactNode;
@@ -34,24 +34,24 @@ function CustomSelect({ label, icon, value, options, onChange, disabled }: Custo
 
   return (
     <div ref={containerRef} className="flex flex-col gap-1.5 text-left relative w-full select-none">
-      <label className="text-[10px] font-black uppercase text-neo-dark/80 tracking-wider">{label}</label>
+      <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">{label}</label>
       <div className="relative">
         <button
           type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
-          className="neo-input w-full text-xs font-semibold flex items-center justify-between text-left bg-white"
-          style={{ paddingLeft: '2.5rem', cursor: disabled ? 'not-allowed' : 'pointer' }}
+          className="neo-input w-full text-sm flex items-center justify-between text-left pl-9 pr-6"
+          style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
           disabled={disabled}
         >
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             {icon}
           </span>
           <span className="truncate">{value || 'Select option...'}</span>
-          <span className="text-[8px] font-black text-neo-dark/60 select-none">▼</span>
+          <span className="text-[8px] text-white/40 select-none">▼</span>
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white border-[3px] border-neo-dark rounded-[8px] shadow-[4px_4px_0_0_#111111] z-50 max-h-48 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#0f0f10] border border-white/[0.1] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 max-h-48 overflow-y-auto py-1">
             {options.map((opt) => (
               <button
                 key={opt}
@@ -60,8 +60,8 @@ function CustomSelect({ label, icon, value, options, onChange, disabled }: Custo
                   onChange(opt);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-4 py-2.5 text-xs font-bold border-b border-neo-dark/5 last:border-b-0 transition-colors ${
-                  value === opt ? 'bg-neo-yellow text-neo-dark' : 'hover:bg-neo-yellow/30 text-neo-dark'
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                  value === opt ? 'bg-[#FFD600]/15 text-[#FFD600]' : 'text-[#f4f4f5] hover:bg-white/[0.06]'
                 }`}
               >
                 {opt}
@@ -198,12 +198,12 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark">
+    <div className="flex flex-col min-h-screen bg-[#050608] text-[#f4f4f5]">
       {/* Header */}
-      <header className="border-b-[3px] border-neo-dark bg-white">
+      <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="hover:scale-95 transition-all flex items-center h-full relative z-10">
-            <img src="/logo.png" alt="Lab Buddies Logo" className="h-18 sm:h-22 w-auto object-contain max-h-none scale-105 origin-left" />
+          <Link href="/" className="hover:opacity-85 transition-opacity flex items-center h-full relative z-10">
+            <Image src="/logo.png" alt="Lab Buddies Logo" width={150} height={48} className="h-16 sm:h-20 w-auto object-contain scale-105 origin-left" />
           </Link>
           <Link href="/login">
             <Button variant="white" size="sm">
@@ -215,11 +215,11 @@ export default function SignupPage() {
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-6 sm:p-12">
-        <Card variant="white" className="max-w-md w-full p-8 border-[4px] shadow-[6px_6px_0_0_#111111] flex flex-col gap-6">
+        <div className="max-w-md w-full p-8 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.6)] flex flex-col gap-6">
           
           <div className="text-center flex flex-col gap-1.5">
-            <h1 className="font-archivo text-2xl uppercase text-neo-dark">Create Account</h1>
-            <p className="text-xs font-bold text-neo-dark/65">
+            <h1 className="text-2xl font-bold text-[#f4f4f5]">Create Account</h1>
+            <p className="text-xs text-[#71717a]">
               Start setting up rooms and tracking your verified profiles.
             </p>
           </div>
@@ -228,18 +228,17 @@ export default function SignupPage() {
             
             {/* Name */}
             <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-[10px] font-black uppercase text-neo-dark/80 tracking-wider">Your Name</label>
+              <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Your Name</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-4 w-4 text-neo-dark/50" />
+                  <User className="h-4 w-4 text-white/30" />
                 </span>
                 <input
                   type="text"
                   placeholder="e.g. John Doe"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="neo-input w-full text-xs font-semibold"
-                  style={{ paddingLeft: '2.5rem' }}
+                  className="neo-input w-full text-sm pl-9"
                   disabled={loading}
                 />
               </div>
@@ -247,18 +246,17 @@ export default function SignupPage() {
 
             {/* Email */}
             <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-[10px] font-black uppercase text-neo-dark/80 tracking-wider">Email Address</label>
+              <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Email Address</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-4 w-4 text-neo-dark/50" />
+                  <Mail className="h-4 w-4 text-white/30" />
                 </span>
                 <input
                   type="email"
                   placeholder="name@college.edu"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="neo-input w-full text-xs font-semibold"
-                  style={{ paddingLeft: '2.5rem' }}
+                  className="neo-input w-full text-sm pl-9"
                   disabled={loading}
                 />
               </div>
@@ -266,45 +264,44 @@ export default function SignupPage() {
 
             {/* Password */}
             <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-[10px] font-black uppercase text-neo-dark/80 tracking-wider">Password</label>
+              <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Password</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-neo-dark/50" />
+                  <Lock className="h-4 w-4 text-white/30" />
                 </span>
                 <input
                   type="password"
                   placeholder="••••••••"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="neo-input w-full text-xs font-semibold"
-                  style={{ paddingLeft: '2.5rem' }}
+                  className="neo-input w-full text-sm pl-9"
                   disabled={loading}
                 />
               </div>
 
               {/* Real-time Password Checker */}
               {form.password.length > 0 && (
-                <div className="flex flex-col gap-1 border-[2px] border-neo-dark bg-cream p-2.5 rounded-[8px] mt-1 text-[10px] font-bold text-neo-dark/80">
-                  <div className="flex items-center gap-1.5">
-                    <span className={form.password.length >= 8 ? 'text-neo-green font-black' : 'text-neo-red'}>
+                <div className="flex flex-col gap-1.5 border border-white/[0.06] bg-white/[0.02] p-3 rounded-xl mt-1 text-[11px] text-[#a1a1aa]">
+                  <div className="flex items-center gap-2">
+                    <span className={form.password.length >= 8 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>
                       {form.password.length >= 8 ? '✓' : '✗'}
                     </span>
                     <span>At least 8 characters</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className={( /[a-z]/.test(form.password) && /[A-Z]/.test(form.password) ) ? 'text-neo-green font-black' : 'text-neo-red'}>
+                  <div className="flex items-center gap-2">
+                    <span className={( /[a-z]/.test(form.password) && /[A-Z]/.test(form.password) ) ? 'text-[#22C55E]' : 'text-[#EF4444]'}>
                       {( /[a-z]/.test(form.password) && /[A-Z]/.test(form.password) ) ? '✓' : '✗'}
                     </span>
-                    <span>Uppercase & Lowercase letters</span>
+                    <span>Uppercase &amp; Lowercase letters</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className={/\d/.test(form.password) ? 'text-neo-green font-black' : 'text-neo-red'}>
+                  <div className="flex items-center gap-2">
+                    <span className={/\d/.test(form.password) ? 'text-[#22C55E]' : 'text-[#EF4444]'}>
                       {/\d/.test(form.password) ? '✓' : '✗'}
                     </span>
                     <span>At least one number</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className={/[@$!%*?&]/.test(form.password) ? 'text-neo-green font-black' : 'text-neo-red'}>
+                  <div className="flex items-center gap-2">
+                    <span className={/[@$!%*?&]/.test(form.password) ? 'text-[#22C55E]' : 'text-[#EF4444]'}>
                       {/[@$!%*?&]/.test(form.password) ? '✓' : '✗'}
                     </span>
                     <span>Special character (@$!%*?&)</span>
@@ -319,7 +316,7 @@ export default function SignupPage() {
               {/* Country */}
               <CustomSelect
                 label="Country"
-                icon={<Globe className="h-4 w-4 text-neo-dark/50" />}
+                icon={<Globe className="h-4 w-4 text-white/30" />}
                 value={form.country}
                 options={countries}
                 onChange={handleCountryChange}
@@ -329,7 +326,7 @@ export default function SignupPage() {
               {/* State */}
               <CustomSelect
                 label="State"
-                icon={<MapPin className="h-4 w-4 text-neo-dark/50" />}
+                icon={<MapPin className="h-4 w-4 text-white/30" />}
                 value={form.state}
                 options={countryData[form.country] || []}
                 onChange={handleStateChange}
@@ -338,21 +335,21 @@ export default function SignupPage() {
 
             </div>
 
-            <Button type="submit" variant="yellow" size="lg" className="w-full gap-2 mt-2" disabled={loading}>
+            <Button type="submit" variant="yellow" size="lg" className="w-full gap-2 mt-2 shadow-[0_0_20px_rgba(255,214,0,0.2)]" disabled={loading}>
               <span>{loading ? 'Creating...' : 'Register'}</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
 
           </form>
 
-          <div className="text-center text-xs font-bold text-neo-dark/60 mt-2">
+          <div className="text-center text-xs text-[#71717a] mt-2">
             <span>Already have an account? </span>
-            <Link href="/login" className="text-neo-orange hover:underline">
+            <Link href="/login" className="text-[#FF6A00] hover:underline">
               Log in here
             </Link>
           </div>
 
-        </Card>
+        </div>
       </main>
     </div>
   );

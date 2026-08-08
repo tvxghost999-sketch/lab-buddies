@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Mail, Lock, Zap } from 'lucide-react';
+import { ArrowRight, Mail, Lock, ArrowLeft } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,28 +53,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-cream selection:bg-neo-yellow selection:text-neo-dark">
+    <div className="flex flex-col min-h-screen bg-[#050608] text-[#f4f4f5]">
       {/* Header */}
-      <header className="border-b-[3px] border-neo-dark bg-white">
+      <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="hover:scale-95 transition-all flex items-center h-full relative z-10">
-            <img src="/logo.png" alt="Lab Buddies Logo" className="h-18 sm:h-22 w-auto object-contain max-h-none scale-105 origin-left" />
+          <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
+            <Image src="/logo.png" alt="Lab Buddies Logo" width={150} height={48} className="h-16 sm:h-20 w-auto object-contain scale-105 origin-left" />
           </Link>
-          <Link href="/signup">
-            <Button variant="white" size="sm">
-              Sign Up
-            </Button>
+          <Link href="/">
+            <button className="flex items-center gap-1.5 text-sm text-[#a1a1aa] hover:text-[#f4f4f5] px-3 py-1.5 rounded-lg border border-white/[0.08] hover:bg-white/[0.06] transition-all">
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
           </Link>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-6">
-        <Card variant="white" className="max-w-md w-full p-8 border-[4px] shadow-[6px_6px_0_0_#111111] flex flex-col gap-6">
+        <div className="max-w-md w-full p-8 border border-white/[0.08] bg-[#0f0f10] rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.6)] flex flex-col gap-6">
           
           <div className="text-center flex flex-col gap-1.5">
-            <h1 className="font-archivo text-2xl uppercase text-neo-dark">Welcome Back</h1>
-            <p className="text-xs font-bold text-neo-dark/65">
+            <h1 className="text-2xl font-bold text-[#f4f4f5]">Welcome Back</h1>
+            <p className="text-xs text-[#71717a]">
               Log in to manage your profile and view verification states.
             </p>
           </div>
@@ -82,18 +84,17 @@ export default function LoginPage() {
             
             {/* Email */}
             <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-[10px] font-black uppercase text-neo-dark/80 tracking-wider">Email Address</label>
+              <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Email Address</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-4 w-4 text-neo-dark/50" />
+                  <Mail className="h-4 w-4 text-white/30" />
                 </span>
                 <input
                   type="email"
                   placeholder="name@college.edu"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="neo-input w-full text-xs font-semibold"
-                  style={{ paddingLeft: '2.5rem' }}
+                  className="neo-input w-full text-sm pl-9"
                   disabled={loading}
                 />
               </div>
@@ -101,38 +102,37 @@ export default function LoginPage() {
 
             {/* Password */}
             <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-[10px] font-black uppercase text-neo-dark/80 tracking-wider">Password</label>
+              <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Password</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-neo-dark/50" />
+                  <Lock className="h-4 w-4 text-white/30" />
                 </span>
                 <input
                   type="password"
                   placeholder="••••••••"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="neo-input w-full text-xs font-semibold"
-                  style={{ paddingLeft: '2.5rem' }}
+                  className="neo-input w-full text-sm pl-9"
                   disabled={loading}
                 />
               </div>
             </div>
 
-            <Button type="submit" variant="yellow" size="lg" className="w-full gap-2 mt-2" disabled={loading}>
+            <Button type="submit" variant="yellow" size="lg" className="w-full gap-2 mt-2 shadow-[0_0_20px_rgba(255,214,0,0.2)]" disabled={loading}>
               <span>{loading ? 'Logging in...' : 'Log In'}</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
 
           </form>
 
-          <div className="text-center text-xs font-bold text-neo-dark/60 mt-2">
-            <span>Don't have an account? </span>
-            <Link href="/signup" className="text-neo-orange hover:underline">
+          <div className="text-center text-xs text-[#71717a] mt-2">
+            <span>Don&apos;t have an account? </span>
+            <Link href="/signup" className="text-[#FF6A00] hover:underline">
               Create an account
             </Link>
           </div>
 
-        </Card>
+        </div>
       </main>
     </div>
   );
