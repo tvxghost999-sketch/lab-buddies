@@ -39,7 +39,7 @@ interface RoomState {
   enterRoom: (pin: string) => Promise<void>;
   
   // Room Actions
-  createRoom: (name: string, maxMembers: number, autoDeleteTimer: string, password?: string, creatorNameInput?: string) => string;
+  createRoom: (name: string, maxMembers: number, autoDeleteTimer: string, password?: string, creatorNameInput?: string) => Promise<string>;
   joinRoom: (pin: string, name: string) => boolean;
   leaveRoom: () => void;
   deleteRoom: () => void;
@@ -267,7 +267,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   // Room creation / entry actions
-  createRoom: (name, maxMembers, autoDeleteTimer, password, creatorNameInput) => {
+  createRoom: async (name, maxMembers, autoDeleteTimer, password, creatorNameInput) => {
     const pin = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit PIN
     const creatorName = creatorNameInput?.trim() || get().currentUser?.name || 'Aman';
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Today';
@@ -302,16 +302,28 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       sessionStorage.setItem(`room_user_${pin}`, JSON.stringify(hostUser));
     }
 
-    // Establish WebSocket and save to MongoDB
+    try {
+      // Save to MongoDB via REST API POST first to guarantee it is written before navigation
+      await fetch(`${BACKEND_URL}/api/room`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pin,
+          name,
+          maxMembers,
+          autoDeleteTimer,
+          createdBy: creatorName,
+          password,
+        }),
+      });
+    } catch (err) {
+      console.error('Error creating room via REST:', err);
+    }
+
+    // Establish WebSocket connection
     socketService.connect(pin, hostUser.name, 'host');
-    socketService.createRoom({
-      pin,
-      name,
-      maxMembers,
-      autoDeleteTimer,
-      createdBy: creatorName,
-      password,
-    });
 
     get().addToast(`Room PIN #${pin} initialized!`, 'success');
     return pin;

@@ -55,9 +55,9 @@ export default function CreateRoomPage() {
     }
   };
 
-  const proceedWithCreation = () => {
+  const proceedWithCreation = async () => {
     const creatorName = hostName.trim() || 'Aman';
-    const newPin = createRoom(roomName, maxMembers, autoDeleteTimer, roomPassword, creatorName);
+    const newPin = await createRoom(roomName, maxMembers, autoDeleteTimer, roomPassword, creatorName);
     setIsAdOpen(false);
     router.push(`/room/${newPin}`);
   };

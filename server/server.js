@@ -424,6 +424,44 @@ app.get('/ping', (req, res) => {
   res.send('pong');
 });
 
+// REST API endpoint to create a room (prevents race condition in deployed high-latency environments)
+app.post('/api/room', async (req, res) => {
+  try {
+    const { pin, name, maxMembers, autoDeleteTimer, password, createdBy } = req.body;
+
+    const existing = await Room.findOne({ pin });
+    if (existing) {
+      return res.status(400).json({ error: 'Room already exists.' });
+    }
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Today';
+
+    const newRoom = new Room({
+      pin,
+      name,
+      maxMembers,
+      autoDeleteTimer,
+      password: password || undefined,
+      isLocked: false,
+      isMuted: false,
+      isFileSharingEnabled: true,
+      roomVisibility: true,
+      createdAt: timestamp,
+      createdAtMs: Date.now(),
+      createdBy,
+      status: 'Active',
+      storageLimit: 25 * 1024 * 1024 // 25MB initial limit
+    });
+
+    await newRoom.save();
+    console.log(`Room ${pin} successfully created via REST API.`);
+    return res.status(201).json({ success: true, room: newRoom });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error creating room.' });
+  }
+});
+
 // Check room exists and retrieve data
 app.get('/api/room/:pin', async (req, res) => {
   try {
