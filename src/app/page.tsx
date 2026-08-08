@@ -28,7 +28,7 @@ const RollingDigit = ({ value, baseAngle }: { value: number; baseAngle: number }
           ? [baseAngle, baseAngle - 6, baseAngle] 
           : [baseAngle, baseAngle + 6, baseAngle]
       }}
-      transition={{ type: "spring", stiffness: 100, damping: 8 }}
+      transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
       className="w-10 h-12 border-[3px] border-neo-dark rounded-[8px] bg-white overflow-hidden shadow-neo-sm relative flex justify-center"
       style={{ transform: `rotate(${baseAngle}deg)` }}
     >
