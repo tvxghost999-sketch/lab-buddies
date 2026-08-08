@@ -46,6 +46,11 @@ export const metadata: Metadata = {
     description: "Lab Buddies is a secure, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
     images: ["/logo.png"],
   },
+  icons: {
+    icon: "/icon-192.png",
+    shortcut: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({
@@ -61,6 +66,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="LabBuddies" />
+        <link rel="icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body
