@@ -692,11 +692,8 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
       <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl h-16 sticky top-0 z-30 flex items-center justify-between">
         {/* Leftmost cell: Logo */}
         <div className="h-full hidden md:flex w-64 border-r border-white/[0.07] items-center px-4 select-none">
-          <Link href="/" className="hover:opacity-85 transition-opacity flex items-center gap-2.5 h-full relative z-10">
-            <Image src="/logo.png?v=6" alt="Lab Buddies Logo" width={40} height={40} className="h-9 w-9 object-contain rounded-xl" />
-            <span className="font-extrabold tracking-tight text-lg text-[#f4f4f5] flex items-center font-sans">
-              Lab<span className="text-[#FFD600]">Buddies</span>
-            </span>
+          <Link href="/" className="hover:opacity-85 transition-opacity flex items-center h-full relative z-10">
+            <Image src="/logo.png?v=6" alt="Lab Buddies Logo" width={120} height={40} className="h-10 w-auto object-contain my-auto" />
           </Link>
         </div>
 
