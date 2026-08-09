@@ -168,6 +168,7 @@ export default function AdminDashboardPage() {
   const fetchData = useCallback(async () => {
     const user = loggedInUser || getStoredUser();
     if (!user || user.role !== 'admin') {
+      setIsLoading(false);
       return;
     }
 
@@ -175,40 +176,55 @@ export default function AdminDashboardPage() {
     const headers = getAdminHeaders();
 
     try {
-      const results = await Promise.allSettled([
-        fetch(`${BACKEND_URL}/api/admin/metrics`, { headers }).then(r => r.ok ? r.json() : null),
-        fetch(`${BACKEND_URL}/api/admin/rooms`, { headers }).then(r => r.ok ? r.json() : null),
-        fetch(`${BACKEND_URL}/api/admin/archives`, { headers }).then(r => r.ok ? r.json() : null),
-        fetch(`${BACKEND_URL}/api/admin/audit-logs`, { headers }).then(r => r.ok ? r.json() : null),
-        fetch(`${BACKEND_URL}/api/admin/files`, { headers }).then(r => r.ok ? r.json() : null),
-        fetch(`${BACKEND_URL}/api/admin/users`, { headers }).then(r => r.ok ? r.json() : null),
+      const responses = await Promise.all([
+        fetch(`${BACKEND_URL}/api/admin/metrics`, { headers }).catch(() => null),
+        fetch(`${BACKEND_URL}/api/admin/rooms`, { headers }).catch(() => null),
+        fetch(`${BACKEND_URL}/api/admin/archives`, { headers }).catch(() => null),
+        fetch(`${BACKEND_URL}/api/admin/audit-logs`, { headers }).catch(() => null),
+        fetch(`${BACKEND_URL}/api/admin/files`, { headers }).catch(() => null),
+        fetch(`${BACKEND_URL}/api/admin/users`, { headers }).catch(() => null),
       ]);
 
-      if (results[0].status === 'fulfilled' && results[0].value) {
-        setMetrics(results[0].value);
+      const [metricsRes, roomsRes, archivesRes, auditRes, filesRes, usersRes] = responses;
+
+      if (metricsRes?.status === 401 || roomsRes?.status === 401) {
+        addToast('Admin token signature missing or expired. Please sign in via the Master Admin Gate.', 'warning');
+        router.push(ADMIN_LOGIN_PATH);
+        return;
       }
-      if (results[1].status === 'fulfilled' && results[1].value) {
-        setRooms(results[1].value.rooms || []);
+
+      if (metricsRes && metricsRes.ok) {
+        const data = await metricsRes.json().catch(() => null);
+        if (data) setMetrics(data);
       }
-      if (results[2].status === 'fulfilled' && results[2].value) {
-        setArchives(results[2].value.archives || []);
+      if (roomsRes && roomsRes.ok) {
+        const data = await roomsRes.json().catch(() => null);
+        if (data) setRooms(data.rooms || (Array.isArray(data) ? data : []));
       }
-      if (results[3].status === 'fulfilled' && results[3].value) {
-        setAuditLogs(results[3].value.logs || []);
+      if (archivesRes && archivesRes.ok) {
+        const data = await archivesRes.json().catch(() => null);
+        if (data) setArchives(data.archives || (Array.isArray(data) ? data : []));
       }
-      if (results[4].status === 'fulfilled' && results[4].value) {
-        setFiles(results[4].value.files || []);
+      if (auditRes && auditRes.ok) {
+        const data = await auditRes.json().catch(() => null);
+        if (data) setAuditLogs(data.logs || (Array.isArray(data) ? data : []));
       }
-      if (results[5].status === 'fulfilled' && results[5].value) {
-        setUsers(results[5].value.users || []);
+      if (filesRes && filesRes.ok) {
+        const data = await filesRes.json().catch(() => null);
+        if (data) setFiles(data.files || (Array.isArray(data) ? data : []));
+      }
+      if (usersRes && usersRes.ok) {
+        const data = await usersRes.json().catch(() => null);
+        if (data) setUsers(data.users || (Array.isArray(data) ? data : []));
       }
     } catch (err) {
       console.error('Failed to load admin data:', err);
+      addToast('Could not sync admin data from backend.', 'error');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [BACKEND_URL, loggedInUser]);
+  }, [BACKEND_URL, loggedInUser, router, addToast]);
 
   useEffect(() => {
     fetchData();

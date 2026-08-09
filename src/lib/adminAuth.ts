@@ -22,7 +22,10 @@ export const getBackendUrl = (): string => {
 
 export const getStoredUser = (): LoggedInUser | null => {
   if (typeof window === 'undefined') return null;
-  const userJson = localStorage.getItem('lab_buddies_user') || sessionStorage.getItem('lab_buddies_user');
+  const userJson =
+    localStorage.getItem('lab_buddies_user') ||
+    localStorage.getItem('logged_in_user') ||
+    sessionStorage.getItem('lab_buddies_user');
   if (!userJson) return null;
   try {
     return JSON.parse(userJson);
@@ -33,29 +36,42 @@ export const getStoredUser = (): LoggedInUser | null => {
 
 export const getAdminToken = (): string => {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('lab_buddies_admin_token') || sessionStorage.getItem('lab_buddies_admin_token') || '';
+  return (
+    localStorage.getItem('lab_buddies_admin_token') ||
+    localStorage.getItem('auth_token') ||
+    sessionStorage.getItem('lab_buddies_admin_token') ||
+    ''
+  );
 };
 
 export const setAdminAuth = (user: LoggedInUser, token?: string) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem('lab_buddies_user', JSON.stringify(user));
+  localStorage.setItem('logged_in_user', JSON.stringify(user));
   if (token) {
     localStorage.setItem('lab_buddies_admin_token', token);
+    localStorage.setItem('auth_token', token);
   }
 };
 
 export const clearAdminAuth = () => {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('lab_buddies_user');
+  localStorage.removeItem('logged_in_user');
   localStorage.removeItem('lab_buddies_admin_token');
+  localStorage.removeItem('auth_token');
   sessionStorage.removeItem('lab_buddies_user');
   sessionStorage.removeItem('lab_buddies_admin_token');
 };
 
-export const getAdminHeaders = (): HeadersInit => {
+export const getAdminHeaders = (): Record<string, string> => {
   const token = getAdminToken();
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : '',
   };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    headers['x-admin-token'] = token;
+  }
+  return headers;
 };

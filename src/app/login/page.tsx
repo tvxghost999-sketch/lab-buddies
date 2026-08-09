@@ -8,7 +8,7 @@ import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
 import Image from 'next/image';
-import { getBackendUrl } from '@/lib/adminAuth';
+import { getBackendUrl, setAdminAuth } from '@/lib/adminAuth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,8 +40,15 @@ export default function LoginPage() {
       const data = await res.json();
       if (res.ok) {
         setLoggedInUser(data.user);
+        if (data.token) {
+          setAdminAuth(data.user, data.token);
+        }
         addToast(data.message || 'Welcome back!', 'success');
-        router.push('/profile');
+        if (data.user?.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/profile');
+        }
       } else {
         addToast(data.error || 'Invalid credentials.', 'error');
       }
