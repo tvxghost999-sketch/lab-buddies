@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import { Resend } from 'resend';
 import { v2 as cloudinary } from 'cloudinary';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -419,10 +420,13 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered.' });
     }
 
+    // Hash password before storing (salt rounds = 12)
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const newUser = new User({
       name,
       email,
-      password,
+      password: hashedPassword,
       country,
       state,
       isVerified: false
@@ -467,7 +471,8 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.trim() });
-    if (!user || user.password !== password) {
+    const passwordMatch = user ? await bcrypt.compare(password, user.password) : false;
+    if (!user || !passwordMatch) {
       attempts.count += 1;
       if (attempts.count >= 5) {
         attempts.lockUntil = now + 15 * 60 * 1000; // 15 min lock
