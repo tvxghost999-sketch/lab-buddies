@@ -203,5 +203,20 @@ export const socketService = {
   },
   onAttendanceHeartbeatReceived: (callback: (data: { rollNumber: string; activeSeconds: number }) => void) => {
     bindListener('attendance-heartbeat-received', callback);
+  },
+  unlockStorage: (pin: string) => {
+    socket?.emit('unlock-storage', { pin });
+  },
+  onStorageLimitUpdated: (callback: (data: { storageLimit: number; limitMB: number }) => void) => {
+    bindListener('storage-limit-updated', callback);
+  },
+  trackDownload: (pin: string, fileId: string, downloaderId: string) => {
+    socket?.emit('track-download', { pin, fileId, downloaderId });
+  },
+  onFileStatsUpdated: (callback: (data: { fileId: string; totalDownloads: number; uniqueDownloads: number }) => void) => {
+    bindListener('file-stats-updated', callback);
+  },
+  onSystemBroadcast: (callback: (data: { title: string; message: string; type: 'info' | 'warning' | 'alert'; timestamp: string }) => void) => {
+    bindListener('system-broadcast', callback);
   }
 };

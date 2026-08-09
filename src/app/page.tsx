@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Zap, Shield, Sparkles, Folder, Code, FileText, Trash2, ArrowRight,
@@ -52,8 +53,25 @@ const RollingDigit = ({ value, baseAngle }: { value: number; baseAngle: number }
 };
 
 export default function LandingPage() {
+  const router = useRouter();
   const pageContainerRef = useRef<HTMLDivElement>(null);
-  const [pinDigits, setPinDigits] = React.useState<number[]>([4, 0, 8, 2, 1, 5]);
+  const [pinDigits, setPinDigits] = useState<number[]>([4, 0, 8, 2, 1, 5]);
+  const [secretClicks, setSecretClicks] = useState(0);
+  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSecretBadgeClick = () => {
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    const nextCount = secretClicks + 1;
+    if (nextCount >= 20) {
+      setSecretClicks(0);
+      router.push('/admin/login');
+      return;
+    }
+    setSecretClicks(nextCount);
+    clickTimerRef.current = setTimeout(() => {
+      setSecretClicks(0);
+    }, 4000);
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -243,7 +261,10 @@ export default function LandingPage() {
               </motion.div>
 
               <motion.div variants={itemVariants} className="flex items-center gap-2 mt-2">
-                <div className="inline-flex items-center gap-1.5 bg-[#FFD600]/10 text-[#FFD600] border border-[#FFD600]/20 px-3 py-1.5 rounded-full text-xs font-medium">
+                <div 
+                  onClick={handleSecretBadgeClick}
+                  className="inline-flex items-center gap-1.5 bg-[#FFD600]/10 text-[#FFD600] border border-[#FFD600]/20 px-3 py-1.5 rounded-full text-xs font-medium select-none cursor-default"
+                >
                   <Lock className="w-3 h-3" />
                   No login. No tracking. Just a PIN.
                 </div>

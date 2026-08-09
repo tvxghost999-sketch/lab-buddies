@@ -41,6 +41,8 @@ export interface FeedItem {
   fileUrl?: string;  // For files (downloadable URL)
   cloudinaryPublicId?: string; // For files hosted on Cloudinary
   fileSizeBytes?: number; // Raw file size in bytes
+  totalDownloads?: number;
+  uniqueDownloads?: number;
   createdAt?: string;
   createdAtMs?: number;
 }
@@ -63,4 +65,17 @@ export interface ActivityLog {
   description: string;
   timestamp: string;
   user?: string;
+}
+
+export interface LoggedInUser {
+  id: string;
+  _id?: string;
+  name: string;
+  email: string;
+  role?: 'user' | 'admin';
+  plan?: 'free' | 'pro' | 'premium' | 'student';
+  country?: string;
+  state?: string;
+  isVerified?: boolean;
+  rollNumber?: string;
 }

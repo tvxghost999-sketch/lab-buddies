@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { Resend } from 'resend';
 import { v2 as cloudinary } from 'cloudinary';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,53 @@ const __dirname = path.dirname(__filename);
 // Load environment variables from project root, then fall back to server directory
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 dotenv.config({ path: path.join(__dirname, '.env') });
+
+// Cryptographic JWT Engine (HMAC-SHA256)
+const JWT_SECRET = process.env.JWT_SECRET || 'lab_buddies_master_secret_key_2026_!#987654321';
+
+const signJwt = (payload, expiresInMs = 7 * 24 * 60 * 60 * 1000) => {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const exp = Date.now() + expiresInMs;
+  const body = Buffer.from(JSON.stringify({ ...payload, exp })).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(`${header}.${body}`)
+    .digest('base64url');
+  return `${header}.${body}.${signature}`;
+};
+
+const verifyJwt = (token) => {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [header, body, signature] = parts;
+  const expectedSignature = crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(`${header}.${body}`)
+    .digest('base64url');
+
+  if (signature.length !== expectedSignature.length) return null;
+  const isValid = crypto.timingSafeEqual(
+    Buffer.from(signature, 'utf8'),
+    Buffer.from(expectedSignature, 'utf8')
+  );
+
+  if (!isValid) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (payload.exp && payload.exp < Date.now()) {
+      return null; // Expired
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+};
+
+// Login brute-force rate limiter (Max 5 attempts / 15 mins)
+const loginAttemptsMap = new Map();
 
 // Initialize Resend (with safety checks for default template key value)
 const resend = process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 're_your_api_key_here'
@@ -73,9 +121,12 @@ const UserSchema = new mongoose.Schema({
   country: { type: String, required: true },
   state: { type: String, required: true },
   isVerified: { type: Boolean, default: false },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  plan: { type: String, enum: ['free', 'pro', 'premium', 'student'], default: 'free' },
   otpCode: { type: String },
   otpExpires: { type: Date },
-  rollNumber: { type: String }
+  rollNumber: { type: String },
+  createdAt: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -113,6 +164,8 @@ const FeedItemSchema = new mongoose.Schema({
   fileUrl: { type: String }, // files downloadable url
   cloudinaryPublicId: { type: String }, // files hosted on Cloudinary
   fileSizeBytes: { type: Number }, // raw file size in bytes
+  totalDownloads: { type: Number, default: 0 },
+  uniqueDownloaders: [{ type: String }],
 });
 const FeedItem = mongoose.model('FeedItem', FeedItemSchema);
 
@@ -148,6 +201,65 @@ const ActivitySchema = new mongoose.Schema({
 });
 const Activity = mongoose.model('Activity', ActivitySchema);
 
+// Lifetime Platform Statistics Schema
+const PlatformStatSchema = new mongoose.Schema({
+  key: { type: String, default: 'global', unique: true },
+  totalRoomsCreated: { type: Number, default: 0 },
+  totalFilesUploaded: { type: Number, default: 0 },
+  totalDownloadsServed: { type: Number, default: 0 },
+  totalStorageBytesProcessed: { type: Number, default: 0 },
+  peakConcurrentUsers: { type: Number, default: 0 },
+});
+const PlatformStat = mongoose.model('PlatformStat', PlatformStatSchema);
+
+// Privacy-Safe Room Archive Schema (Metadata only — zero message/file contents)
+const RoomArchiveSchema = new mongoose.Schema({
+  pin: { type: String, required: true, index: true },
+  name: { type: String, default: 'Study Room' },
+  createdBy: { type: String, default: 'Host' },
+  totalParticipants: { type: Number, default: 1 },
+  totalFiles: { type: Number, default: 0 },
+  totalStorageMB: { type: String, default: '0.00' },
+  totalDownloads: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+  destroyedAt: { type: Date, default: Date.now },
+  destructionReason: { type: String, default: 'Timer Expiry' },
+  durationMinutes: { type: Number, default: 0 },
+});
+const RoomArchive = mongoose.model('RoomArchive', RoomArchiveSchema);
+
+// Admin Action Audit Trail Schema
+const AdminAuditLogSchema = new mongoose.Schema({
+  adminEmail: { type: String, required: true },
+  action: { type: String, required: true },
+  target: { type: String, default: '' },
+  details: { type: String, default: '' },
+  timestamp: { type: Date, default: Date.now },
+});
+const AdminAuditLog = mongoose.model('AdminAuditLog', AdminAuditLogSchema);
+
+// Helper to record admin audit logs
+const logAdminAction = async (adminEmail, action, target, details) => {
+  try {
+    await AdminAuditLog.create({ adminEmail, action, target, details });
+  } catch (err) {
+    console.error('[AUDIT ERROR]:', err);
+  }
+};
+
+// Helper to increment platform lifetime statistics
+const incrementPlatformStat = async (field, amount = 1) => {
+  try {
+    await PlatformStat.findOneAndUpdate(
+      { key: 'global' },
+      { $inc: { [field]: amount } },
+      { upsert: true, new: true }
+    );
+  } catch (err) {
+    console.error('[PLATFORM STAT ERROR]:', err);
+  }
+};
+
 // --- Room Cleanup & Self-Destruct Helpers ---
 const parseTimerDuration = (timerStr) => {
   if (!timerStr) return 2 * 60 * 60 * 1000;
@@ -167,12 +279,37 @@ const parseTimerDuration = (timerStr) => {
   return totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
 };
 
-const cleanupRoomData = async (pin) => {
+const cleanupRoomData = async (pin, destructionReason = 'Timer Expiry') => {
   try {
-    console.log(`[CLEANUP] Purging room ${pin} and all associated assets...`);
+    console.log(`\n=============================================`);
+    console.log(`[CLEANUP] Starting cleanup for Room PIN: ${pin} (Reason: ${destructionReason})`);
 
-    // 1. Find all file items in the feed
+    const room = await Room.findOne({ pin });
     const files = await FeedItem.find({ roomPin: pin, type: 'file' });
+    const membersCount = await Member.countDocuments({ roomPin: pin });
+    const totalStorageBytes = files.reduce((acc, f) => acc + (f.fileSizeBytes || 0), 0);
+    const totalDownloads = files.reduce((acc, f) => acc + (f.totalDownloads || 0), 0);
+    
+    // Save Privacy-Safe Room Archive Summary
+    if (room) {
+      const createdAtMs = room.createdAtMs || new Date(room.createdAt).getTime() || Date.now();
+      const durationMin = Math.round((Date.now() - createdAtMs) / (60 * 1000));
+      await RoomArchive.create({
+        pin,
+        name: room.name || 'Study Room',
+        createdBy: room.createdBy || 'Host',
+        totalParticipants: Math.max(1, membersCount),
+        totalFiles: files.length,
+        totalStorageMB: (totalStorageBytes / (1024 * 1024)).toFixed(2),
+        totalDownloads,
+        createdAt: new Date(createdAtMs),
+        destroyedAt: new Date(),
+        destructionReason,
+        durationMinutes: durationMin > 0 ? durationMin : 1,
+      });
+    }
+
+    const deletedPublicIds = [];
     
     // 2. Delete files from Cloudinary if hosted there
     for (const file of files) {
@@ -184,7 +321,8 @@ const cleanupRoomData = async (pin) => {
           const resourceType = isImage ? 'image' : isVideo ? 'video' : 'raw';
           
           await cloudinary.uploader.destroy(file.cloudinaryPublicId, { resource_type: resourceType });
-          console.log(`[CLEANUP] Deleted file ${file.fileName} (${file.cloudinaryPublicId}) as resource_type: ${resourceType} from Cloudinary`);
+          deletedPublicIds.push(file.cloudinaryPublicId);
+          console.log(`[CLEANUP] Deleted Cloudinary asset: ${file.fileName} (${file.cloudinaryPublicId}) [${resourceType}]`);
         } catch (cloudinaryErr) {
           console.error(`[CLEANUP] Failed to delete file ${file.fileName} from Cloudinary:`, cloudinaryErr);
         }
@@ -197,7 +335,7 @@ const cleanupRoomData = async (pin) => {
         if (fs.existsSync(localFilePath)) {
           try {
             fs.unlinkSync(localFilePath);
-            console.log(`[CLEANUP] Deleted local fallback upload: ${localFileName}`);
+            console.log(`[CLEANUP] Deleted local file: ${localFileName}`);
           } catch (unlinkErr) {
             console.error(`[CLEANUP] Failed to delete local file ${localFilePath}:`, unlinkErr);
           }
@@ -205,16 +343,27 @@ const cleanupRoomData = async (pin) => {
       }
     }
 
-    // 4. Delete room database collections
-    await Room.deleteOne({ pin });
-    await FeedItem.deleteMany({ roomPin: pin });
-    await Note.deleteMany({ roomPin: pin });
-    await Member.deleteMany({ roomPin: pin });
-    await Activity.deleteMany({ roomPin: pin });
+    // 4. Atomically purge all associated MongoDB collections
+    const [delRoom, delFeed, delNotes, delMembers, delActivities] = await Promise.all([
+      Room.deleteMany({ pin }),
+      FeedItem.deleteMany({ roomPin: pin }),
+      Note.deleteMany({ roomPin: pin }),
+      Member.deleteMany({ roomPin: pin }),
+      Activity.deleteMany({ roomPin: pin }),
+    ]);
 
-    // 5. Broadcast expire event to sockets
+    // 5. Broadcast expire event to all connected sockets
     io.to(pin).emit('room-expired');
-    console.log(`[CLEANUP] Room ${pin} has been fully destroyed.`);
+
+    console.log(`[CLEANUP AUDIT] Room PIN: ${pin}`);
+    console.log(`  - Room Document Purged: ${delRoom.deletedCount}`);
+    console.log(`  - Feed Items (Messages, Code, Files) Destroyed: ${delFeed.deletedCount}`);
+    console.log(`  - Notes & Collaborative Pads Destroyed: ${delNotes.deletedCount}`);
+    console.log(`  - Active Members Cleared: ${delMembers.deletedCount}`);
+    console.log(`  - Activity & History Logs Destroyed: ${delActivities.deletedCount}`);
+    console.log(`  - Cloudinary Media Assets Purged: ${deletedPublicIds.length} (${JSON.stringify(deletedPublicIds)})`);
+    console.log(`[CLEANUP AUDIT] Room #${pin} and all associated data completely destroyed.`);
+    console.log(`=============================================\n`);
   } catch (err) {
     console.error(`[CLEANUP] Error purger failed for room ${pin}:`, err);
   }
@@ -302,17 +451,52 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    // NoSQL Injection Defense: Strict string verification
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Invalid email or password format.' });
+    }
+
+    // Brute-force rate limiting (Max 5 failed attempts per IP / 15 minutes)
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    const attempts = loginAttemptsMap.get(ip) || { count: 0, lockUntil: 0 };
+
+    if (attempts.lockUntil > now) {
+      const waitMin = Math.ceil((attempts.lockUntil - now) / 60000);
+      return res.status(429).json({ error: `Too many failed login attempts. IP locked for ${waitMin} more minute(s).` });
+    }
+
+    const user = await User.findOne({ email: email.trim() });
     if (!user || user.password !== password) {
+      attempts.count += 1;
+      if (attempts.count >= 5) {
+        attempts.lockUntil = now + 15 * 60 * 1000; // 15 min lock
+        console.warn(`[SECURITY] Locked IP ${ip} due to 5 consecutive failed login attempts on ${email}`);
+      }
+      loginAttemptsMap.set(ip, attempts);
       return res.status(400).json({ error: 'Invalid email or password.' });
     }
 
+    // Clear failed attempts on success
+    loginAttemptsMap.delete(ip);
+
+    // Generate Tamper-Proof Signed JWT
+    const token = signJwt({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role || 'user',
+      plan: user.plan || 'free'
+    });
+
     return res.status(200).json({
       message: 'Logged in successfully!',
+      token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role || 'user',
+        plan: user.plan || 'free',
         country: user.country,
         state: user.state,
         isVerified: user.isVerified,
@@ -528,9 +712,37 @@ app.get('/api/room/:pin', async (req, res) => {
   }
 });
 
+// Upload Rate Limiting (5 uploads / 60 seconds per IP)
+const uploadRateLimitMap = new Map();
+const checkUploadRateLimit = (ip) => {
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxUploads = 5;
+
+  let timestamps = uploadRateLimitMap.get(ip) || [];
+  timestamps = timestamps.filter((t) => now - t < windowMs);
+
+  if (timestamps.length >= maxUploads) {
+    uploadRateLimitMap.set(ip, timestamps);
+    return false;
+  }
+
+  timestamps.push(now);
+  uploadRateLimitMap.set(ip, timestamps);
+  return true;
+};
+
 // File Upload endpoint
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    if (!checkUploadRateLimit(clientIp)) {
+      if (req.file) {
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
+      }
+      return res.status(429).json({ error: 'Too many uploads. Please wait 1 minute before uploading again.' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded.' });
     }
@@ -619,6 +831,309 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'File upload failed.' });
+  }
+});
+
+// --- ADMIN AUTHORIZATION MIDDLEWARE & ENDPOINTS ---
+
+const adminAuthMiddleware = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'] || req.headers['x-admin-token'];
+
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Cryptographic authorization token required. Please sign in as admin.' });
+    }
+
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+    const payload = verifyJwt(token);
+
+    if (!payload || !payload.id) {
+      return res.status(401).json({ error: 'Invalid, tampered, or expired admin token signature.' });
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user) {
+      return res.status(401).json({ error: 'Admin account not found.' });
+    }
+
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access Denied: Verified Admin role required.' });
+    }
+
+    req.adminUser = user;
+    next();
+  } catch (err) {
+    console.error('[ADMIN AUTH ERROR]:', err);
+    return res.status(500).json({ error: 'Internal admin authorization error.' });
+  }
+};
+
+// 1. Admin Metrics Overview
+app.get('/api/admin/metrics', adminAuthMiddleware, async (req, res) => {
+  try {
+    const totalActiveRooms = await Room.countDocuments({ status: 'Active' });
+    const totalUsers = await User.countDocuments();
+    const totalFiles = await FeedItem.countDocuments({ type: 'file' });
+    
+    const fileItems = await FeedItem.find({ type: 'file' }).select('fileSizeBytes totalDownloads');
+    const totalStorageBytes = fileItems.reduce((acc, f) => acc + (f.fileSizeBytes || 0), 0);
+    const totalDownloads = fileItems.reduce((acc, f) => acc + (f.totalDownloads || 0), 0);
+
+    const onlineMembers = await Member.countDocuments({ isOnline: true });
+    const proUsers = await User.countDocuments({ plan: { $in: ['pro', 'premium'] } });
+
+    // Lifetime Platform Stats
+    let stats = await PlatformStat.findOne({ key: 'global' });
+    if (!stats) {
+      stats = await PlatformStat.create({
+        key: 'global',
+        totalRoomsCreated: totalActiveRooms,
+        totalFilesUploaded: totalFiles,
+        totalDownloadsServed: totalDownloads,
+        totalStorageBytesProcessed: totalStorageBytes,
+      });
+    }
+
+    const totalArchives = await RoomArchive.countDocuments();
+
+    return res.status(200).json({
+      activeRooms: totalActiveRooms,
+      totalUsers,
+      totalFiles,
+      totalStorageMB: (totalStorageBytes / (1024 * 1024)).toFixed(2),
+      totalDownloads,
+      onlineMembers,
+      proUsers,
+      serverUptimeSeconds: Math.floor(process.uptime()),
+      memoryUsageMB: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1),
+      lifetime: {
+        totalRoomsCreated: (stats.totalRoomsCreated || 0) + totalArchives,
+        totalFilesUploaded: stats.totalFilesUploaded || totalFiles,
+        totalDownloadsServed: stats.totalDownloadsServed || totalDownloads,
+        totalStorageMBProcessed: ((stats.totalStorageBytesProcessed || totalStorageBytes) / (1024 * 1024)).toFixed(2),
+        totalArchivedSessions: totalArchives,
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN METRICS ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to retrieve admin metrics.' });
+  }
+});
+
+// 2. Admin Rooms List
+app.get('/api/admin/rooms', adminAuthMiddleware, async (req, res) => {
+  try {
+    const rooms = await Room.find().sort({ _id: -1 }).limit(100);
+    
+    // Enrich with file counts and member counts
+    const enrichedRooms = await Promise.all(rooms.map(async (r) => {
+      const fileCount = await FeedItem.countDocuments({ roomPin: r.pin, type: 'file' });
+      const memberCount = await Member.countDocuments({ roomPin: r.pin, isOnline: true });
+      const files = await FeedItem.find({ roomPin: r.pin, type: 'file' }).select('fileSizeBytes');
+      const storageBytes = files.reduce((sum, f) => sum + (f.fileSizeBytes || 0), 0);
+      
+      return {
+        pin: r.pin,
+        name: r.name,
+        createdBy: r.createdBy,
+        status: r.status,
+        isLocked: r.isLocked,
+        isMuted: r.isMuted,
+        autoDeleteTimer: r.autoDeleteTimer,
+        createdAt: r.createdAt,
+        fileCount,
+        memberCount,
+        storageMB: (storageBytes / (1024 * 1024)).toFixed(2),
+        storageLimitMB: Math.round((r.storageLimit || 25 * 1024 * 1024) / (1024 * 1024))
+      };
+    }));
+
+    return res.status(200).json({ rooms: enrichedRooms });
+  } catch (err) {
+    console.error('[ADMIN ROOMS ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to retrieve rooms.' });
+  }
+});
+
+// 3. Admin Force Delete Room (Purges from Cloudinary & DB, Archives Summary)
+app.delete('/api/admin/rooms/:pin', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { pin } = req.params;
+    console.log(`[ADMIN ACTION] Force-deleting room ${pin} by admin ${req.adminUser.email}`);
+    await cleanupRoomData(pin, 'Admin Terminated');
+    await logAdminAction(req.adminUser.email, 'DELETE_ROOM', `Room #${pin}`, 'Force terminated room and purged assets');
+    return res.status(200).json({ message: `Room ${pin} and all associated Cloudinary assets destroyed.` });
+  } catch (err) {
+    console.error('[ADMIN DELETE ROOM ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to delete room.' });
+  }
+});
+
+// 4. Admin Toggle Lock Room
+app.patch('/api/admin/rooms/:pin/toggle-lock', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { pin } = req.params;
+    const room = await Room.findOne({ pin });
+    if (!room) return res.status(404).json({ error: 'Room not found.' });
+
+    room.isLocked = !room.isLocked;
+    await room.save();
+
+    io.to(pin).emit('room-settings-updated', room);
+    await logAdminAction(req.adminUser.email, 'TOGGLE_LOCK', `Room #${pin}`, `Lock status set to ${room.isLocked}`);
+    return res.status(200).json({ message: `Room ${pin} lock set to ${room.isLocked}`, isLocked: room.isLocked });
+  } catch (err) {
+    console.error('[ADMIN LOCK ROOM ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to toggle room lock.' });
+  }
+});
+
+// 5. Admin Files List
+app.get('/api/admin/files', adminAuthMiddleware, async (req, res) => {
+  try {
+    const files = await FeedItem.find({ type: 'file' }).sort({ _id: -1 }).limit(200);
+    return res.status(200).json({ files });
+  } catch (err) {
+    console.error('[ADMIN FILES ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to retrieve files.' });
+  }
+});
+
+// 6. Admin Delete Individual File
+app.delete('/api/admin/files/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const file = await FeedItem.findById(id);
+    if (!file) return res.status(404).json({ error: 'File not found.' });
+
+    // Destroy on Cloudinary
+    if (file.cloudinaryPublicId && useCloudinary) {
+      try {
+        const ext = file.fileType ? file.fileType.toLowerCase() : '';
+        const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext);
+        const isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
+        const resourceType = isImage ? 'image' : isVideo ? 'video' : 'raw';
+        await cloudinary.uploader.destroy(file.cloudinaryPublicId, { resource_type: resourceType });
+        console.log(`[ADMIN CLEANUP] Purged Cloudinary asset: ${file.cloudinaryPublicId}`);
+      } catch (cErr) {
+        console.error('Cloudinary destroy error:', cErr);
+      }
+    }
+
+    await FeedItem.findByIdAndDelete(id);
+    io.to(file.roomPin).emit('feed-item-deleted', { itemId: id });
+    await logAdminAction(req.adminUser.email, 'DELETE_FILE', file.fileName, `Purged file from Room #${file.roomPin}`);
+
+    return res.status(200).json({ message: `File ${file.fileName} purged successfully.` });
+  } catch (err) {
+    console.error('[ADMIN DELETE FILE ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to delete file.' });
+  }
+});
+
+// 7. Admin Room Archives (Privacy-Safe Session Summaries)
+app.get('/api/admin/archives', adminAuthMiddleware, async (req, res) => {
+  try {
+    const archives = await RoomArchive.find().sort({ destroyedAt: -1 }).limit(100);
+    return res.status(200).json({ archives });
+  } catch (err) {
+    console.error('[ADMIN ARCHIVES ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to retrieve room archives.' });
+  }
+});
+
+// 8. Admin Audit Trail Logs
+app.get('/api/admin/audit-logs', adminAuthMiddleware, async (req, res) => {
+  try {
+    const logs = await AdminAuditLog.find().sort({ timestamp: -1 }).limit(150);
+    return res.status(200).json({ logs });
+  } catch (err) {
+    console.error('[ADMIN AUDIT LOGS ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to retrieve audit logs.' });
+  }
+});
+
+// 9. Admin Users List
+app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
+  try {
+    const users = await User.find().select('-password -otpCode').sort({ _id: -1 }).limit(200);
+    return res.status(200).json({ users });
+  } catch (err) {
+    console.error('[ADMIN USERS ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to retrieve users.' });
+  }
+});
+
+// 8. Admin Update User Role
+app.patch('/api/admin/users/:id/role', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role.' });
+    }
+
+    const user = await User.findByIdAndUpdate(id, { role }, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    return res.status(200).json({ message: `User role updated to ${role}`, user });
+  } catch (err) {
+    console.error('[ADMIN ROLE UPDATE ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to update user role.' });
+  }
+});
+
+// 9. Admin Update User Plan
+app.patch('/api/admin/users/:id/plan', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plan } = req.body;
+    if (!['free', 'pro', 'premium', 'student'].includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan.' });
+    }
+
+    const user = await User.findByIdAndUpdate(id, { plan }, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    return res.status(200).json({ message: `User plan updated to ${plan}`, user });
+  } catch (err) {
+    console.error('[ADMIN PLAN UPDATE ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to update user plan.' });
+  }
+});
+
+// 10. Admin Delete User
+app.delete('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByIdAndDelete(id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    return res.status(200).json({ message: `User ${user.email} removed.` });
+  } catch (err) {
+    console.error('[ADMIN DELETE USER ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to delete user.' });
+  }
+});
+
+// 11. Admin Global System Broadcast
+app.post('/api/admin/broadcast', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { message, title, type } = req.body;
+    if (!message) return res.status(400).json({ error: 'Broadcast message required.' });
+
+    io.emit('system-broadcast', {
+      title: title || 'System Announcement',
+      message,
+      type: type || 'info',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+
+    console.log(`[ADMIN BROADCAST] "${title}: ${message}" sent by ${req.adminUser.email}`);
+    return res.status(200).json({ message: 'Broadcast published to all active clients.' });
+  } catch (err) {
+    console.error('[ADMIN BROADCAST ERROR]:', err);
+    return res.status(500).json({ error: 'Failed to publish broadcast.' });
   }
 });
 
@@ -1269,6 +1784,56 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Rewarded Ad: Unlock +25 MB Room Storage (Max 100 MB)
+  socket.on('unlock-storage', async ({ pin }) => {
+    try {
+      const room = await Room.findOne({ pin });
+      if (!room) return;
+
+      const currentLimitMB = Math.round((room.storageLimit || 25 * 1024 * 1024) / (1024 * 1024));
+      if (currentLimitMB >= 100) {
+        socket.emit('rate-limited', { message: 'Maximum room storage limit (100 MB) already reached.' });
+        return;
+      }
+
+      const newLimitMB = Math.min(100, currentLimitMB + 25);
+      room.storageLimit = newLimitMB * 1024 * 1024;
+      await room.save();
+
+      io.to(pin).emit('storage-limit-updated', {
+        storageLimit: room.storageLimit,
+        limitMB: newLimitMB
+      });
+      console.log(`[STORAGE] Room ${pin} unlocked +25 MB storage. New Limit: ${newLimitMB} MB.`);
+    } catch (err) {
+      console.error('[STORAGE] Error unlocking room storage:', err);
+    }
+  });
+
+  // Track File Download Analytics
+  socket.on('track-download', async ({ pin, fileId, downloaderId }) => {
+    try {
+      if (!fileId) return;
+      const item = await FeedItem.findById(fileId);
+      if (item && item.type === 'file') {
+        item.totalDownloads = (item.totalDownloads || 0) + 1;
+        if (downloaderId && (!item.uniqueDownloaders || !item.uniqueDownloaders.includes(downloaderId))) {
+          if (!item.uniqueDownloaders) item.uniqueDownloaders = [];
+          item.uniqueDownloaders.push(downloaderId);
+        }
+        await item.save();
+
+        io.to(pin).emit('file-stats-updated', {
+          fileId: item._id.toString(),
+          totalDownloads: item.totalDownloads,
+          uniqueDownloads: item.uniqueDownloaders?.length || 1,
+        });
+      }
+    } catch (err) {
+      console.error('[DOWNLOAD-STATS] Error tracking file download:', err);
+    }
+  });
+
   // Create Room (called via REST or ws helper)
   socket.on('create-room', async (roomData) => {
     try {
@@ -1337,18 +1902,31 @@ io.on('connection', (socket) => {
   });
 });
 
-// Background Room self-destruct sweeper (runs every 1 minute)
+// Background Room self-destruct sweeper & integrity scrub (runs every 1 minute)
 setInterval(async () => {
   try {
     const now = Date.now();
     const rooms = await Room.find({});
+    const activePins = rooms.map((r) => r.pin);
+
+    // 1. Process expired rooms
     for (const room of rooms) {
       const duration = parseTimerDuration(room.autoDeleteTimer);
       const createdAtMs = room.createdAtMs || new Date(room.createdAt).getTime() || now;
       if (now - createdAtMs >= duration) {
-        console.log(`[SWEEPER] Room ${room.pin} expired. Triggering auto-delete...`);
+        console.log(`[SWEEPER] Room #${room.pin} self-destruct timer expired. Purging all room data...`);
         await cleanupRoomData(room.pin);
       }
+    }
+
+    // 2. Orphaned database records garbage collection
+    if (activePins.length > 0) {
+      await Promise.all([
+        FeedItem.deleteMany({ roomPin: { $nin: activePins } }),
+        Note.deleteMany({ roomPin: { $nin: activePins } }),
+        Member.deleteMany({ roomPin: { $nin: activePins } }),
+        Activity.deleteMany({ roomPin: { $nin: activePins } }),
+      ]);
     }
   } catch (err) {
     console.error('[SWEEPER] Error running database sweeper:', err);

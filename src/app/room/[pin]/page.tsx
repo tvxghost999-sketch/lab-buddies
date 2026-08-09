@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
+import { getThumbnailUrl, getPreviewUrl } from '@/lib/cloudinary';
 import Card from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
 import Button from '@/components/ui/button';
@@ -357,6 +358,13 @@ export default function RoomDashboard() {
   const uploadFile = async (file: File) => {
     if (!file) return;
 
+    const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
+    const maxBytes = isPremium ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      addToast(`File size exceeds limit (${isPremium ? '50 MB' : '5 MB'}).`, 'error');
+      return;
+    }
+
     // Switch composer mode to file so the user sees the attachment card
     setComposerMode('file');
     addToast(`Uploading ${file.name}...`, 'info');
@@ -543,6 +551,8 @@ export default function RoomDashboard() {
     addToast('Code snippet copied to clipboard!', 'success');
   };
 
+  const lastDownloadTimesRef = useRef<Record<string, number>>({});
+
   const handleFileClick = (fileItem: { id: string; fileName: string; fileUrl?: string; fileType?: string; fileSize?: string }) => {
     if (!fileItem.fileUrl) {
       addToast('File link is missing.', 'error');
@@ -561,6 +571,15 @@ export default function RoomDashboard() {
       });
       return;
     }
+
+    // 10-second download throttle anti-spam protection
+    const now = Date.now();
+    const lastTime = lastDownloadTimesRef.current[fileItem.id] || 0;
+    if (now - lastTime < 10000) {
+      addToast('Please wait before downloading again', 'warning');
+      return;
+    }
+    lastDownloadTimesRef.current[fileItem.id] = now;
 
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
 
@@ -587,6 +606,9 @@ export default function RoomDashboard() {
     setIsAdOpen(false);
     setPendingDownload(null);
     addToast(`Downloading ${fileName}...`, 'info');
+
+    // Track download analytics
+    socketService.trackDownload(pin, fileId, currentUser?.id || currentUser?.name || 'anonymous');
 
     // Simulate WhatsApp smooth download progress and download to disk
     setTimeout(() => {
@@ -756,12 +778,22 @@ export default function RoomDashboard() {
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-[#FFD600]" />
           <span className="text-sm font-semibold text-[#f4f4f5]">Live Workspace Feed</span>
+          <div className="hidden sm:flex items-center gap-1 bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#22C55E] px-2 py-0.5 rounded-full text-[10px] font-semibold">
+            <ShieldCheck className="w-3 h-3 text-[#22C55E]" />
+            <span>End-to-End Encrypted</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-          <span className="text-[10px] text-[#71717a] font-medium">
-            {onlineCount} Online
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="flex sm:hidden items-center gap-1 bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#22C55E] px-1.5 py-0.5 rounded-full text-[9px] font-semibold">
+            <ShieldCheck className="w-2.5 h-2.5 text-[#22C55E]" />
+            <span>E2EE</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+            <span className="text-[10px] text-[#71717a] font-medium">
+              {onlineCount} Online
+            </span>
+          </div>
         </div>
       </div>
 
@@ -886,13 +918,32 @@ export default function RoomDashboard() {
                           onClick={() => handleFileClick({ id: itemId, fileName: item.fileName || 'File', fileUrl: item.fileUrl, fileType: item.fileType, fileSize: item.fileSize })}
                           className="border border-white/[0.08] rounded-2xl bg-[#22C55E]/10 hover:bg-[#22C55E]/15 p-3 w-full max-w-sm flex items-center gap-3.5 text-left cursor-pointer active:scale-[0.99] transition-all duration-150 group select-none shadow-[0_2px_12px_rgba(0,0,0,0.2)]"
                         >
-                          <div className="w-10 h-10 bg-[#EF4444]/15 border border-[#EF4444]/20 rounded-xl flex flex-col items-center justify-center text-[8.5px] font-bold text-[#EF4444] flex-shrink-0 select-none">
-                            <FileText className="w-4 h-4 text-[#EF4444]" />
-                            <span>{item.fileType?.toUpperCase().slice(0, 3) || 'FILE'}</span>
-                          </div>
+                          {['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes((item.fileType || '').toLowerCase()) && item.fileUrl ? (
+                            <div className="w-11 h-11 rounded-xl overflow-hidden border border-white/10 bg-black/40 flex-shrink-0 flex items-center justify-center">
+                              <img 
+                                src={getThumbnailUrl(item.fileUrl)} 
+                                alt={item.fileName || 'Image'}
+                                loading="lazy"
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 bg-[#EF4444]/15 border border-[#EF4444]/20 rounded-xl flex flex-col items-center justify-center text-[8.5px] font-bold text-[#EF4444] flex-shrink-0 select-none">
+                              <FileText className="w-4 h-4 text-[#EF4444]" />
+                              <span>{item.fileType?.toUpperCase().slice(0, 3) || 'FILE'}</span>
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0 flex flex-col justify-center">
                             <span className="text-sm font-semibold text-[#f4f4f5] truncate">{item.fileName}</span>
-                            <span className="text-xs text-[#71717a] mt-0.5">{item.fileSize}</span>
+                            <div className="flex items-center gap-1.5 text-[11px] text-[#71717a] mt-0.5">
+                              <span>{item.fileSize}</span>
+                              {item.totalDownloads !== undefined && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-[#a1a1aa]">{item.totalDownloads} {item.totalDownloads === 1 ? 'dl' : 'dls'}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                           
                           {/* WhatsApp Download / Preview Action Button */}
@@ -1029,13 +1080,32 @@ export default function RoomDashboard() {
                           onClick={() => handleFileClick({ id: itemId, fileName: item.fileName || 'File', fileUrl: item.fileUrl, fileType: item.fileType, fileSize: item.fileSize })}
                           className="border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] rounded-2xl p-3 w-full max-w-sm flex items-center gap-3.5 text-left cursor-pointer active:scale-[0.99] transition-all duration-150 group select-none shadow-[0_2px_12px_rgba(0,0,0,0.2)]"
                         >
-                          <div className="w-10 h-10 bg-[#EF4444]/15 border border-[#EF4444]/20 rounded-xl flex flex-col items-center justify-center text-[8.5px] font-bold text-[#EF4444] flex-shrink-0 select-none">
-                            <FileText className="w-4 h-4 text-[#EF4444]" />
-                            <span>{item.fileType?.toUpperCase().slice(0, 3) || 'FILE'}</span>
-                          </div>
+                          {['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes((item.fileType || '').toLowerCase()) && item.fileUrl ? (
+                            <div className="w-11 h-11 rounded-xl overflow-hidden border border-white/10 bg-black/40 flex-shrink-0 flex items-center justify-center">
+                              <img 
+                                src={getThumbnailUrl(item.fileUrl)} 
+                                alt={item.fileName || 'Image'}
+                                loading="lazy"
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 bg-[#EF4444]/15 border border-[#EF4444]/20 rounded-xl flex flex-col items-center justify-center text-[8.5px] font-bold text-[#EF4444] flex-shrink-0 select-none">
+                              <FileText className="w-4 h-4 text-[#EF4444]" />
+                              <span>{item.fileType?.toUpperCase().slice(0, 3) || 'FILE'}</span>
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0 flex flex-col justify-center">
                             <span className="text-sm font-semibold text-[#f4f4f5] truncate">{item.fileName}</span>
-                            <span className="text-xs text-[#71717a] mt-0.5">{item.fileSize}</span>
+                            <div className="flex items-center gap-1.5 text-[11px] text-[#71717a] mt-0.5">
+                              <span>{item.fileSize}</span>
+                              {item.totalDownloads !== undefined && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-[#a1a1aa]">{item.totalDownloads} {item.totalDownloads === 1 ? 'dl' : 'dls'}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
 
                           {/* WhatsApp Download / Preview Action Button */}
@@ -1343,8 +1413,9 @@ export default function RoomDashboard() {
                   return (
                     <div className="relative max-h-[70vh] flex items-center justify-center">
                       <img 
-                        src={previewFile.fileUrl} 
+                        src={getPreviewUrl(previewFile.fileUrl)} 
                         alt={previewFile.fileName}
+                        loading="lazy"
                         className="max-h-[68vh] max-w-full w-auto object-contain rounded-xl shadow-2xl border border-white/[0.06]"
                       />
                     </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { Room, Member, FeedItem, Note, ActivityLog } from '../lib/types';
+import { Room, Member, FeedItem, Note, ActivityLog, LoggedInUser } from '../lib/types';
 import { socketService } from '../lib/socket';
+import { deriveRoomKey, encryptFeedItem, decryptFeedItem, encryptNote, decryptNote } from '../lib/crypto';
 
 const getBackendUrl = () => {
   if (process.env.NEXT_PUBLIC_BACKEND_URL) {
@@ -30,10 +31,13 @@ interface RoomState {
   notes: Note[];
   activities: ActivityLog[];
   toasts: Toast[];
+  roomCryptoKey: CryptoKey | null;
+  systemBroadcast: { title: string; message: string; type: 'info' | 'warning' | 'alert'; timestamp: string } | null;
 
   // Actions
   addToast: (message: string, type: Toast['type']) => void;
   removeToast: (id: string) => void;
+  dismissBroadcast: () => void;
   
   // Full-stack connections
   enterRoom: (pin: string) => Promise<void>;
@@ -67,17 +71,8 @@ interface RoomState {
   updateNote: (id: string, updates: Partial<Note>) => void;
 
   // Auth States & Actions
-  loggedInUser: {
-    id: string;
-    name: string;
-    email: string;
-    country: string;
-    state: string;
-    isVerified: boolean;
-    plan?: string;
-    rollNumber?: string;
-  } | null;
-  setLoggedInUser: (user: any) => void;
+  loggedInUser: LoggedInUser | null;
+  setLoggedInUser: (user: LoggedInUser | null) => void;
   logoutUser: () => void;
 
   // Confirmation Modal
@@ -100,6 +95,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   notes: [],
   activities: [],
   toasts: [],
+  roomCryptoKey: null,
 
   loggedInUser: typeof window !== 'undefined' && localStorage.getItem('logged_in_user')
     ? JSON.parse(localStorage.getItem('logged_in_user') || 'null')
@@ -122,6 +118,9 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     }
     set({ loggedInUser: null });
   },
+
+  systemBroadcast: null,
+  dismissBroadcast: () => set({ systemBroadcast: null }),
 
   // Toast actions
   addToast: (message, type) => {
@@ -156,19 +155,28 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       }
 
       if (!current) {
-        // Fallback for direct browser url entrance to preserve screenshot identities
-        if (pin === '408215') {
-          current = { id: '1', name: 'Aman (Host)', role: 'host', joinedAt: '11:40 AM', isOnline: true, isMuted: false };
-        } else {
+        const loggedIn = get().loggedInUser;
+        if (loggedIn?.name) {
           current = {
-            id: `user-${Date.now()}`,
-            name: `Buddy_${Math.floor(100 + Math.random() * 900)}`,
+            id: loggedIn.id || `user-${Date.now()}`,
+            name: loggedIn.name,
             role: 'member',
             joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isOnline: true,
             isMuted: false
           };
+        } else if (typeof window !== 'undefined') {
+          // Name is compulsory — redirect user to join page to enter their name
+          window.location.href = `/join?pin=${pin}`;
+          return;
         }
+      }
+
+      if (!current) {
+        if (typeof window !== 'undefined') {
+          window.location.href = `/join?pin=${pin}`;
+        }
+        return;
       }
 
       // Save to sessionStorage
@@ -190,13 +198,25 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
         const updatedUser = { ...current, role: userRole };
 
+        // Derive E2EE CryptoKey from Room PIN and stored room password
+        let storedPassword = '';
+        if (typeof window !== 'undefined') {
+          storedPassword = sessionStorage.getItem(`room_pwd_${pin}`) || '';
+        }
+        const cryptoKey = await deriveRoomKey(pin, storedPassword);
+
+        // Decrypt initial REST feed and notes
+        const decryptedFeed = await Promise.all((data.feed || []).map((item: FeedItem) => decryptFeedItem(item, cryptoKey)));
+        const decryptedNotes = await Promise.all((data.notes || []).map((note: Note) => decryptNote(note, cryptoKey)));
+
         set({
           activeRoom: data.room,
-          feedItems: data.feed,
-          notes: data.notes,
+          feedItems: decryptedFeed,
+          notes: decryptedNotes,
           members: data.members,
           activities: data.activities,
-          currentUser: updatedUser
+          currentUser: updatedUser,
+          roomCryptoKey: cryptoKey,
         });
 
         if (typeof window !== 'undefined') {
@@ -209,12 +229,16 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         }
 
         // Bind Socket listeners to reactively mutate Zustand store
-        socketService.onFeedUpdated((feed) => {
-          set({ feedItems: feed });
+        socketService.onFeedUpdated(async (feed) => {
+          const key = get().roomCryptoKey;
+          const decrypted = await Promise.all((feed || []).map((item) => decryptFeedItem(item, key)));
+          set({ feedItems: decrypted });
         });
 
-        socketService.onNotesUpdated((notes) => {
-          set({ notes });
+        socketService.onNotesUpdated(async (notes) => {
+          const key = get().roomCryptoKey;
+          const decrypted = await Promise.all((notes || []).map((note) => decryptNote(note, key)));
+          set({ notes: decrypted });
         });
 
         socketService.onMembersUpdated((membersList) => {
@@ -241,6 +265,24 @@ export const useRoomStore = create<RoomState>((set, get) => ({
           set({ activeRoom: room });
         });
 
+        socketService.onStorageLimitUpdated(({ storageLimit, limitMB }) => {
+          const current = get().activeRoom;
+          if (current) {
+            set({ activeRoom: { ...current, storageLimit } });
+          }
+          get().addToast(`Room storage expanded to ${limitMB} MB!`, 'success');
+        });
+
+        socketService.onFileStatsUpdated(({ fileId, totalDownloads, uniqueDownloads }) => {
+          const feedItems = (get().feedItems || []).map((item) => {
+            if ((item.id === fileId || item._id === fileId) && item.type === 'file') {
+              return { ...item, totalDownloads, uniqueDownloads };
+            }
+            return item;
+          });
+          set({ feedItems });
+        });
+
         socketService.onKicked(() => {
           get().addToast('You have been kicked by the host!', 'error');
           get().leaveRoom();
@@ -251,6 +293,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
           get().addToast('This room has expired or was deleted by the host!', 'warning');
           get().leaveRoom();
           window.location.href = '/';
+        });
+
+        socketService.onSystemBroadcast((data) => {
+          set({ systemBroadcast: data });
+          const toastType = data.type === 'alert' ? 'error' : data.type === 'warning' ? 'warning' : 'info';
+          get().addToast(`📢 ${data.title}: ${data.message}`, toastType);
         });
 
         socketService.onRateLimited(({ message }) => {
@@ -442,10 +490,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   // Feed/Post Actions
-  addFeedItem: (item) => {
+  addFeedItem: async (item) => {
     const pin = get().activeRoom?.pin;
     if (pin) {
-      socketService.sendFeedItem(pin, item);
+      const key = get().roomCryptoKey;
+      const encryptedItem = await encryptFeedItem(item, key);
+      socketService.sendFeedItem(pin, encryptedItem);
     }
   },
 
@@ -457,11 +507,13 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   // Note actions
-  addNote: (note) => {
+  addNote: async (note) => {
     const pin = get().activeRoom?.pin;
     const creator = get().currentUser?.name || 'Aman';
     if (pin) {
-      socketService.createNote(pin, { ...note, createdBy: creator });
+      const key = get().roomCryptoKey;
+      const encryptedNote = await encryptNote({ ...note, createdBy: creator }, key);
+      socketService.createNote(pin, encryptedNote);
     }
   },
 

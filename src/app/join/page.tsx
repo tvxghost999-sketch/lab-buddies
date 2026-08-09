@@ -114,7 +114,11 @@ export default function JoinRoomPage() {
 
         if (pin) {
           setPinDigits(pin.split(''));
-          addToast(`Successfully scanned! Room PIN #${pin} loaded.`, 'success');
+          if (!guestName.trim()) {
+            addToast(`Room PIN #${pin} loaded! Please enter your buddy name.`, 'info');
+          } else {
+            addToast(`Room PIN #${pin} loaded.`, 'success');
+          }
           setActiveTab('pin');
         } else {
           addToast('Scanned code, but no valid 6-digit room PIN found.', 'error');
@@ -264,6 +268,16 @@ export default function JoinRoomPage() {
   // Submit Pin Join
   const handleJoinByPin = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedName = guestName.trim();
+    if (!trimmedName) {
+      addToast('Please enter your buddy name. Name is compulsory.', 'error');
+      return;
+    }
+    if (trimmedName.length < 2) {
+      addToast('Buddy name must be at least 2 characters long.', 'error');
+      return;
+    }
+
     const pin = pinDigits.join('');
     if (pin.length < 6) {
       addToast('Please enter all 6 digits of the room PIN.', 'error');
@@ -274,7 +288,11 @@ export default function JoinRoomPage() {
   };
 
   const proceedWithJoinByPin = async (pin: string) => {
-    const nameToUse = guestName.trim() || `Buddy_${Math.floor(100 + Math.random() * 900)}`;
+    const nameToUse = guestName.trim();
+    if (!nameToUse) {
+      addToast('Please enter your buddy name. Name is compulsory.', 'error');
+      return;
+    }
     setIsAdOpen(false);
     
     setIsShuffling(true);
@@ -299,7 +317,7 @@ export default function JoinRoomPage() {
       <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
-            <Image src="/logo.png?v=3" alt="Lab Buddies Logo" width={150} height={48} className="h-12 sm:h-14 w-auto object-contain my-auto" />
+            <Image src="/logo.png?v=5" alt="Lab Buddies Logo" width={150} height={48} className="h-12 sm:h-14 w-auto object-contain my-auto" />
           </Link>
           <Link href="/">
             <button className="flex items-center gap-1.5 text-sm text-[#a1a1aa] hover:text-[#f4f4f5] px-3 py-1.5 rounded-lg border border-white/[0.08] hover:bg-white/[0.06] transition-all">
@@ -321,24 +339,36 @@ export default function JoinRoomPage() {
                 Join a Room
               </h1>
               <p className="text-sm text-[#71717a]">
-                Enter your nickname and details below to connect with your buddies instantly.
+                Enter your buddy name and room details below to connect with your peers.
               </p>
             </div>
 
             {/* Nickname Input Card */}
             <div className="glass-card p-5 flex flex-col gap-3">
-              <span className="text-xs font-semibold text-[#FFD600] bg-[#FFD600]/10 self-start px-2.5 py-1 rounded-full border border-[#FFD600]/20">
-                Who are you?
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#FFD600] bg-[#FFD600]/10 px-2.5 py-1 rounded-full border border-[#FFD600]/20">
+                  Step 1: Your Identity
+                </span>
+                <span className="text-[11px] text-[#EF4444] font-medium">* Required</span>
+              </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Choose Buddy Nickname</label>
+                <label className="text-xs font-semibold text-[#f4f4f5] uppercase tracking-wider flex items-center gap-1">
+                  <span>Enter Your Buddy Name</span>
+                  <span className="text-[#EF4444]">*</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Aman, Priya, Rohit..."
+                  required
+                  placeholder="e.g. Aman, Priya, Rohit (Cannot be empty)"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
-                  className="neo-input w-full text-sm"
+                  className={`neo-input w-full text-sm ${!guestName.trim() ? 'border-[#EF4444]/40 focus:border-[#EF4444]' : 'border-white/[0.1] focus:border-[#FFD600]'}`}
                 />
+                {!guestName.trim() && (
+                  <span className="text-[10.5px] text-[#EF4444] font-medium">
+                    * Name is compulsory to enter the room.
+                  </span>
+                )}
               </div>
             </div>
 

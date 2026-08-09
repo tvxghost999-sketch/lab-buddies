@@ -8,7 +8,7 @@ import {
   Zap, Copy, LogOut, Menu, X, 
   MessageSquare, FolderOpen, Users, Activity, 
   Code, StickyNote, Settings, Search, Lock, 
-  VolumeX, Trash2, Ban, QrCode, Calendar
+  VolumeX, Trash2, Ban, QrCode, Calendar, Sparkles
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
@@ -602,6 +602,16 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                   style={{ width: `${percentage}%` }}
                 />
               </div>
+              {limitMB < 100 && (
+                <button
+                  type="button"
+                  onClick={() => setIsStorageAdOpen(true)}
+                  className="mt-1 w-full py-1.5 px-2 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/25 text-[#FFD600] hover:bg-[#FFD600]/20 hover:border-[#FFD600]/40 text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5 flex-shrink-0 animate-pulse" />
+                  <span>Unlock +25 MB (Watch Ad)</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -618,6 +628,16 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                   style={{ width: `${percentage}%` }}
                 />
               </div>
+              {limitMB < 100 && (
+                <button
+                  type="button"
+                  onClick={() => setIsStorageAdOpen(true)}
+                  className="mt-1 w-full py-1.5 px-2 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/25 text-[#FFD600] hover:bg-[#FFD600]/20 hover:border-[#FFD600]/40 text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5 flex-shrink-0 animate-pulse" />
+                  <span>Unlock +25 MB (Watch Ad)</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -673,7 +693,7 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         {/* Leftmost cell: Logo */}
         <div className="h-full hidden md:flex w-64 border-r border-white/[0.07] items-center px-4 select-none">
           <Link href="/" className="hover:opacity-85 transition-opacity flex items-center h-full relative z-10">
-            <Image src="/logo.png?v=3" alt="Lab Buddies Logo" width={140} height={40} className="h-11 w-auto object-contain my-auto" />
+            <Image src="/logo.png?v=5" alt="Lab Buddies Logo" width={140} height={40} className="h-11 w-auto object-contain my-auto" />
           </Link>
         </div>
 
@@ -696,6 +716,11 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
 
         {/* Right side: Room Pin badge & Quick QR button */}
         <div className="pr-3 flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-1 bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#22C55E] px-2.5 py-1 rounded-xl text-[10.5px] font-semibold select-none" title="End-to-End Encrypted with AES-256-GCM">
+            <Lock className="w-3 h-3 text-[#22C55E]" />
+            <span>E2EE</span>
+          </div>
+
           <Link href={`/room/${pin}/qr`}>
             <button 
               className="p-2 border border-white/[0.08] bg-white/[0.03] hover:bg-[#FFD600]/15 hover:border-[#FFD600]/30 hover:text-[#FFD600] rounded-xl transition-all flex items-center justify-center cursor-pointer text-[#a1a1aa]"
@@ -797,17 +822,15 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
       <AdInterstitial 
         isOpen={isStorageAdOpen}
         onComplete={() => {
-          if (currentUser?.role === 'host') {
-            socketService.emitHostAdCompleted(pin);
-          }
+          socketService.unlockStorage(pin);
+          setIsStorageAdOpen(false);
         }}
         onClose={() => {
-          if (currentUser?.role === 'host') {
-            setIsStorageAdOpen(false);
-          }
+          setIsStorageAdOpen(false);
+          addToast('Ad was cancelled. Storage was not expanded.', 'warning');
         }}
-        actionLabel="Expanding Storage Limit"
-        showCloseButton={currentUser?.role === 'host'}
+        actionLabel="Unlocking +25 MB Storage"
+        showCloseButton={true}
       />
 
       {/* Host Offline Status Banner */}

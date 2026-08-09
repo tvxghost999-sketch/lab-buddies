@@ -43,7 +43,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
           <Image
-            src="/logo.png?v=3"
+            src="/logo.png?v=5"
             alt="Lab Buddies logo - anonymous student file sharing platform"
             width={150}
             height={48}
@@ -73,6 +73,13 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           {isMounted && loggedInUser ? (
             <div className="flex items-center gap-2">
+              {loggedInUser.role === 'admin' && (
+                <Link href="/admin">
+                  <button className="flex items-center gap-1.5 bg-[#FFD600]/15 border border-[#FFD600]/30 hover:bg-[#FFD600]/25 text-[#FFD600] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer">
+                    <span>Admin</span>
+                  </button>
+                </Link>
+              )}
               <Link href="/profile">
                 <div className="relative hover:opacity-80 transition-opacity select-none cursor-pointer">
                   <div className="w-9 h-9 rounded-full bg-[#FFD600]/15 border border-[#FFD600]/30 flex items-center justify-center text-[#FFD600] text-sm font-bold uppercase">

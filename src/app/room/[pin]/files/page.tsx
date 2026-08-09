@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { 
   FolderOpen, Search, Download, Sparkles, Filter, 
@@ -8,6 +8,7 @@ import {
   Code, Play, AlertCircle, Plus 
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
+import { socketService } from '@/lib/socket';
 import Card from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
 import Button from '@/components/ui/button';
@@ -19,6 +20,7 @@ export default function FilesPage() {
 
   const feedItems = useRoomStore((state) => state.feedItems);
   const addToast = useRoomStore((state) => state.addToast);
+  const currentUser = useRoomStore((state) => state.currentUser);
   
   const filesList = feedItems.filter(item => item.type === 'file');
 
@@ -27,16 +29,26 @@ export default function FilesPage() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isAdOpen, setIsAdOpen] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState<{ fileName: string; fileUrl?: string } | null>(null);
+  const [pendingDownload, setPendingDownload] = useState<{ fileId: string; fileName: string; fileUrl?: string } | null>(null);
+  const lastDownloadTimesRef = useRef<Record<string, number>>({});
   
   const loggedInUser = useRoomStore((state) => state.loggedInUser);
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-  const handleDownload = (fileName: string, fileUrl?: string) => {
+  const handleDownload = (fileId: string, fileName: string, fileUrl?: string) => {
+    // 10-second download throttle anti-spam protection
+    const now = Date.now();
+    const lastTime = lastDownloadTimesRef.current[fileId] || 0;
+    if (now - lastTime < 10000) {
+      addToast('Please wait before downloading again', 'warning');
+      return;
+    }
+    lastDownloadTimesRef.current[fileId] = now;
+
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
     
     if (isPremium) {
-      proceedWithDownload(fileName, fileUrl);
+      proceedWithDownload(fileId, fileName, fileUrl);
       return;
     }
 
@@ -45,17 +57,18 @@ export default function FilesPage() {
     const nextCount = count + 1;
 
     if (nextCount > 0 && nextCount % 4 === 0) {
-      setPendingDownload({ fileName, fileUrl });
+      setPendingDownload({ fileId, fileName, fileUrl });
       setIsAdOpen(true);
     } else {
       if (typeof window !== 'undefined') {
         localStorage.setItem('lab_buddies_downloads_count', nextCount.toString());
       }
-      proceedWithDownload(fileName, fileUrl);
+      proceedWithDownload(fileId, fileName, fileUrl);
     }
   };
 
-  const proceedWithDownload = (fileName: string, fileUrl?: string) => {
+  const proceedWithDownload = (fileId: string, fileName: string, fileUrl?: string) => {
+    socketService.trackDownload(pin, fileId, currentUser?.id || currentUser?.name || 'anonymous');
     if (fileUrl) {
       window.open(fileUrl, '_blank');
       addToast(`Downloading ${fileName}...`, 'success');
@@ -224,8 +237,14 @@ export default function FilesPage() {
                   <span className="text-xs font-semibold text-[#f4f4f5] truncate block" title={file.fileName}>
                     {file.fileName}
                   </span>
-                  <span className="text-[10px] text-[#71717a] mt-0.5">
-                    {file.fileSize}
+                  <span className="text-[10px] text-[#71717a] mt-0.5 flex items-center gap-1.5">
+                    <span>{file.fileSize}</span>
+                    {file.totalDownloads !== undefined && (
+                      <>
+                        <span>•</span>
+                        <span className="text-[#a1a1aa]">{file.totalDownloads} downloads</span>
+                      </>
+                    )}
                   </span>
                 </div>
 
@@ -237,7 +256,7 @@ export default function FilesPage() {
                 <Button
                   variant="white"
                   size="sm"
-                  onClick={() => handleDownload(file.fileName || '', file.fileUrl)}
+                  onClick={() => handleDownload(file._id || file.id, file.fileName || '', file.fileUrl)}
                   className="w-full gap-1.5 mt-1 text-[11px] justify-center"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -260,7 +279,7 @@ export default function FilesPage() {
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-semibold text-[#f4f4f5] truncate">{file.fileName}</span>
                     <span className="text-[10px] text-[#71717a]">
-                      {file.fileSize} • Uploaded by {file.senderName} ({file.timestamp})
+                      {file.fileSize} {file.totalDownloads !== undefined ? `• ${file.totalDownloads} dls` : ''} • Uploaded by {file.senderName} ({file.timestamp})
                     </span>
                   </div>
                 </div>
@@ -268,7 +287,7 @@ export default function FilesPage() {
                 <Button
                   variant="white"
                   size="sm"
-                  onClick={() => handleDownload(file.fileName || '', file.fileUrl)}
+                  onClick={() => handleDownload(file._id || file.id, file.fileName || '', file.fileUrl)}
                   className="gap-1 px-3 py-1.5 text-xs justify-center"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -305,14 +324,14 @@ export default function FilesPage() {
             const count = parseInt(countStr, 10);
             localStorage.setItem('lab_buddies_downloads_count', (count + 1).toString());
           }
-          if (pendingDownload) proceedWithDownload(pendingDownload.fileName, pendingDownload.fileUrl);
+          if (pendingDownload) proceedWithDownload(pendingDownload.fileId, pendingDownload.fileName, pendingDownload.fileUrl);
         }} 
         onClose={() => {
           setIsAdOpen(false);
           setPendingDownload(null);
           addToast('Ad was cancelled. Download aborted.', 'warning');
-        }} 
-        actionLabel="Starting Download" 
+        }}
+        actionLabel="Unlocking Download"
       />
     </div>
   );

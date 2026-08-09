@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { 
   Search, MessageSquare, Folder, Code, StickyNote, 
   Users, Filter, Calendar, FileText, ArrowRight, AlertCircle, Download
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
+import { socketService } from '@/lib/socket';
 import { Select } from '@/components/ui/input';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -32,6 +33,7 @@ export default function SearchPage() {
   const feedItems = useRoomStore((state) => state.feedItems);
   const notes = useRoomStore((state) => state.notes);
   const members = useRoomStore((state) => state.members);
+  const currentUser = useRoomStore((state) => state.currentUser);
   const addToast = useRoomStore((state) => state.addToast);
   const loggedInUser = useRoomStore((state) => state.loggedInUser);
 
@@ -43,11 +45,21 @@ export default function SearchPage() {
   const [languageFilter, setLanguageFilter] = useState('All Languages');
 
   const [isAdOpen, setIsAdOpen] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState<{ fileName: string; fileUrl?: string } | null>(null);
+  const [pendingDownload, setPendingDownload] = useState<{ fileId: string; fileName: string; fileUrl?: string } | null>(null);
+  const lastDownloadTimesRef = useRef<Record<string, number>>({});
   
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-  const handleDownload = (fileName: string, fileUrl?: string) => {
+  const handleDownload = (fileId: string, fileName: string, fileUrl?: string) => {
+    // 10-second download throttle anti-spam protection
+    const now = Date.now();
+    const lastTime = lastDownloadTimesRef.current[fileId] || 0;
+    if (now - lastTime < 10000) {
+      addToast('Please wait before downloading again', 'warning');
+      return;
+    }
+    lastDownloadTimesRef.current[fileId] = now;
+
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
 
     const countStr = typeof window !== 'undefined' ? (localStorage.getItem('lab_buddies_downloads_count') || '0') : '0';
@@ -55,23 +67,24 @@ export default function SearchPage() {
     const nextCount = count + 1;
 
     if (!isPremium && nextCount > 0 && nextCount % 4 === 0) {
-      setPendingDownload({ fileName, fileUrl });
+      setPendingDownload({ fileId, fileName, fileUrl });
       setIsAdOpen(true);
     } else {
       if (typeof window !== 'undefined') {
         localStorage.setItem('lab_buddies_downloads_count', nextCount.toString());
       }
-      proceedWithDownload(fileName, fileUrl);
+      proceedWithDownload(fileId, fileName, fileUrl);
     }
   };
 
-  const proceedWithDownload = (fileName: string, fileUrl?: string) => {
+  const proceedWithDownload = (fileId: string, fileName: string, fileUrl?: string) => {
     setIsAdOpen(false);
     setPendingDownload(null);
     if (!fileUrl) {
       addToast('Download link is missing.', 'error');
       return;
     }
+    socketService.trackDownload(pin, fileId, currentUser?.id || currentUser?.name || 'anonymous');
     const link = document.createElement('a');
     link.href = fileUrl;
     link.target = '_blank';
@@ -405,7 +418,7 @@ export default function SearchPage() {
                           <Button
                             variant="white"
                             size="sm"
-                            onClick={() => handleDownload(result.fileName || result.title, result.fileUrl)}
+                            onClick={() => handleDownload(result.id, result.fileName || result.title, result.fileUrl)}
                             className="gap-1.5 text-[11px] justify-center py-1.5"
                           >
                             <Download className="w-3.5 h-3.5" />
@@ -440,14 +453,14 @@ export default function SearchPage() {
             const count = parseInt(countStr, 10);
             localStorage.setItem('lab_buddies_downloads_count', (count + 1).toString());
           }
-          if (pendingDownload) proceedWithDownload(pendingDownload.fileName, pendingDownload.fileUrl);
+          if (pendingDownload) proceedWithDownload(pendingDownload.fileId, pendingDownload.fileName, pendingDownload.fileUrl);
         }} 
         onClose={() => {
           setIsAdOpen(false);
           setPendingDownload(null);
           addToast('Ad was cancelled. Download aborted.', 'warning');
         }} 
-        actionLabel="Starting Download" 
+        actionLabel="Unlocking Download" 
       />
 
     </div>

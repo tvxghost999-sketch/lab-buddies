@@ -5,6 +5,7 @@ import QueryProvider from "@/providers/queryProvider";
 import { ToastContainer } from "@/components/ui/toast";
 import TermsConsentModal from "@/components/TermsConsentModal";
 import PWARegister from "@/components/PWARegister";
+import BroadcastBanner from "@/components/BroadcastBanner";
 import ConfirmModal from "@/components/ConfirmModal";
 
 const archivoBlack = Archivo_Black({
@@ -64,7 +65,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/logo.png?v=3",
+        url: "/logo.png?v=5",
         width: 1200,
         height: 630,
         alt: "Lab Buddies - Free No-Login File & Code Sharing Platform",
@@ -75,7 +76,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Lab Buddies — Share Files & Code with No Login | Snapdrop Alternative",
     description: "Instant ephemeral study rooms for students. Share files, code snippets, notes, and links anonymously with a 6-digit Room PIN.",
-    images: ["/logo.png?v=3"],
+    images: ["/logo.png?v=5"],
     creator: "@labbuddies",
   },
   robots: {
@@ -90,9 +91,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/icon-192.png?v=3",
-    shortcut: "/icon-192.png?v=3",
-    apple: "/icon-192.png?v=3",
+    icon: "/icon-192.png?v=5",
+    shortcut: "/icon-192.png?v=5",
+    apple: "/icon-192.png?v=5",
   },
 };
 
@@ -109,13 +110,14 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LabBuddies" />
-        <link rel="icon" href="/icon-192.png" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" href="/icon-192.png?v=5" />
+        <link rel="apple-touch-icon" href="/icon-192.png?v=5" />
       </head>
       <body
         className={`${archivoBlack.variable} ${inter.variable} font-sans antialiased bg-[#050608] text-[#f4f4f5] min-h-full flex flex-col`}
       >
         <QueryProvider>
+          <BroadcastBanner />
           {children}
           <ToastContainer />
           <TermsConsentModal />
