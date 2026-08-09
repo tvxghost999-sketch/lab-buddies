@@ -91,9 +91,15 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/icon-192.png?v=5",
-    shortcut: "/icon-192.png?v=5",
-    apple: "/icon-192.png?v=5",
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      { url: '/icon-192.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
 };
 
@@ -110,8 +116,24 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LabBuddies" />
-        <link rel="icon" href="/icon-192.png?v=5" />
-        <link rel="apple-touch-icon" href="/icon-192.png?v=5" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'Lab Buddies',
+              url: 'https://labbuddies.hariommodi.online',
+              logo: 'https://labbuddies.hariommodi.online/icon-512.png',
+              sameAs: ['https://labbuddies.hariommodi.online'],
+            }),
+          }}
+        />
       </head>
       <body
         className={`${archivoBlack.variable} ${inter.variable} font-sans antialiased bg-[#050608] text-[#f4f4f5] min-h-full flex flex-col`}

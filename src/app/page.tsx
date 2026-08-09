@@ -158,6 +158,19 @@ export default function LandingPage() {
           __html: JSON.stringify([
             {
               "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "Lab Buddies",
+              "alternateName": ["LabBuddies", "Lab Buddies Online", "lab buddies"],
+              "url": "https://labbuddies.hariommodi.online",
+              "description": "Free, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a 6-digit room PIN.",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://labbuddies.hariommodi.online/join?pin={search_term_string}",
+                "query-input": "required name=search_term_string"
+              }
+            },
+            {
+              "@context": "https://schema.org",
               "@type": "WebApplication",
               "name": "Lab Buddies",
               "url": "https://labbuddies.hariommodi.online",
@@ -234,12 +247,12 @@ export default function LandingPage() {
             <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col gap-6">
               <motion.div variants={itemVariants} className="inline-flex items-center gap-2 self-start bg-[#FFD600]/10 text-[#FFD600] border border-[#FFD600]/20 px-3 py-1.5 rounded-full text-xs font-medium">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>#1 Platform for Students</span>
+                <span>#1 Study Room Platform for Students</span>
               </motion.div>
 
               <motion.h1 variants={itemVariants} className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] tracking-tight text-[#f4f4f5]">
-                Share Code.<br />
-                Share Files.<br />
+                Lab Buddies —<br />
+                Share Code & Files.<br />
                 <span style={{ background: 'linear-gradient(135deg, #FFD600, #FF6A00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                   No Login Required.
                 </span>
