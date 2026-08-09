@@ -1,5 +1,8 @@
 import { LoggedInUser } from './types';
 
+// Obfuscated Admin Entrance Path
+export const ADMIN_LOGIN_PATH = '/admin/gate-9021x';
+
 export const getBackendUrl = (): string => {
   if (process.env.NEXT_PUBLIC_BACKEND_URL) {
     return process.env.NEXT_PUBLIC_BACKEND_URL;

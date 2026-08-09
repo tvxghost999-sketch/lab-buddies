@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { ADMIN_LOGIN_PATH } from '@/lib/adminAuth';
 import {
   Zap, Shield, Sparkles, Folder, Code, FileText, Trash2, ArrowRight,
   ShieldCheck, FolderUp, Terminal, StickyNote, Settings,
@@ -64,7 +65,7 @@ export default function LandingPage() {
     const nextCount = secretClicks + 1;
     if (nextCount >= 20) {
       setSecretClicks(0);
-      router.push('/admin/login');
+      router.push(ADMIN_LOGIN_PATH);
       return;
     }
     setSecretClicks(nextCount);

@@ -15,7 +15,7 @@ import {
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
-import { getAdminHeaders, getStoredUser, getBackendUrl, clearAdminAuth } from '@/lib/adminAuth';
+import { getAdminHeaders, getStoredUser, getBackendUrl, clearAdminAuth, ADMIN_LOGIN_PATH } from '@/lib/adminAuth';
 
 interface AdminMetrics {
   activeRooms: number;
@@ -141,12 +141,12 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const user = loggedInUser || getStoredUser();
     if (!user) {
-      router.push('/admin/login');
+      router.push(ADMIN_LOGIN_PATH);
       return;
     }
     if (user.role !== 'admin') {
       addToast('Access Denied: Admin privileges required.', 'error');
-      router.push('/admin/login');
+      router.push(ADMIN_LOGIN_PATH);
       return;
     }
     if (!loggedInUser && user) {
@@ -359,7 +359,7 @@ export default function AdminDashboardPage() {
     clearAdminAuth();
     setLoggedInUser(null);
     addToast('Admin signed out.', 'info');
-    router.push('/admin/login');
+    router.push(ADMIN_LOGIN_PATH);
   };
 
   // Filtered lists
