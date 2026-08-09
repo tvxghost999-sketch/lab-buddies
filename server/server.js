@@ -530,11 +530,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
     if (resend) {
       try {
-        let fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-        const isGeneric = /@(gmail|yahoo|outlook|hotmail|live|aol|icloud)\.com$/i.test(fromEmail);
-        if (isGeneric || fromEmail === 'onboarding@resend.dev') {
-          fromEmail = 'onboarding@resend.dev';
-        }
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@hariommodi.online';
         await resend.emails.send({
           from: `Lab Buddies <${fromEmail}>`,
           to: email,
