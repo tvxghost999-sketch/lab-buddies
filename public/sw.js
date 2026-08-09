@@ -1,10 +1,14 @@
-const CACHE_NAME = 'labbuddies-cache-v1';
+const CACHE_NAME = 'labbuddies-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
   '/logo.png',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/favicon.ico',
+  '/favicon.png',
+  '/apple-touch-icon.png',
+  '/og-image.png'
 ];
 
 self.addEventListener('install', (event) => {

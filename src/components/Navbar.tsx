@@ -41,15 +41,18 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="hover:opacity-80 transition-opacity flex items-center h-full relative z-10">
+        <Link href="/" className="hover:opacity-80 transition-opacity flex items-center gap-2.5 h-full relative z-10">
           <Image
-            src="/logo.png?v=5"
+            src="/logo.png?v=6"
             alt="Lab Buddies logo - anonymous student file sharing platform"
-            width={150}
-            height={48}
+            width={44}
+            height={44}
             priority
-            className="h-12 sm:h-14 w-auto object-contain my-auto"
+            className="h-10 w-10 sm:h-11 sm:w-11 object-contain rounded-xl"
           />
+          <span className="font-extrabold tracking-tight text-lg sm:text-xl text-[#f4f4f5] flex items-center font-sans">
+            Lab<span className="text-[#FFD600]">Buddies</span>
+          </span>
         </Link>
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-1">

@@ -405,7 +405,12 @@ export default function AdminDashboardPage() {
     return (
       <div className="flex flex-col min-h-screen bg-[#050608] text-[#f4f4f5]">
         <header className="border-b border-white/[0.08] bg-[#050608]/90 h-16 flex items-center px-6">
-          <Image src="/logo.png?v=5" alt="Lab Buddies Logo" width={140} height={44} className="h-10 w-auto object-contain" />
+          <div className="flex items-center gap-2.5">
+            <Image src="/logo.png?v=6" alt="Lab Buddies Logo" width={40} height={40} className="h-9 w-9 object-contain rounded-xl" />
+            <span className="font-extrabold tracking-tight text-lg text-[#f4f4f5] flex items-center font-sans">
+              Lab<span className="text-[#FFD600]">Buddies</span>
+            </span>
+          </div>
         </header>
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-16 flex flex-col items-center justify-center gap-3">
           <div className="w-8 h-8 border-2 border-[#FFD600] border-t-transparent rounded-full animate-spin" />
@@ -421,8 +426,11 @@ export default function AdminDashboardPage() {
       <header className="border-b border-white/[0.08] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <Link href="/" className="hover:opacity-85 transition-opacity flex items-center">
-              <Image src="/logo.png?v=5" alt="Lab Buddies Logo" width={140} height={44} className="h-10 sm:h-12 w-auto object-contain my-auto" />
+            <Link href="/" className="hover:opacity-85 transition-opacity flex items-center gap-2.5">
+              <Image src="/logo.png?v=6" alt="Lab Buddies Logo" width={40} height={40} className="h-9 w-9 object-contain rounded-xl" />
+              <span className="font-extrabold tracking-tight text-lg text-[#f4f4f5] flex items-center font-sans">
+                Lab<span className="text-[#FFD600]">Buddies</span>
+              </span>
             </Link>
             <div className="hidden sm:flex items-center gap-1.5 bg-[#FFD600]/15 border border-[#FFD600]/30 text-[#FFD600] px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider">
               <ShieldCheck className="w-3.5 h-3.5" />

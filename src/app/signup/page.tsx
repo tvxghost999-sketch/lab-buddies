@@ -211,8 +211,11 @@ export default function SignupPage() {
       {/* Header */}
       <header className="border-b border-white/[0.07] bg-[#050608]/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="hover:opacity-85 transition-opacity flex items-center h-full relative z-10">
-            <Image src="/logo.png?v=5" alt="Lab Buddies Logo" width={150} height={48} className="h-12 sm:h-14 w-auto object-contain my-auto" />
+          <Link href="/" className="hover:opacity-85 transition-opacity flex items-center gap-2.5 h-full relative z-10">
+            <Image src="/logo.png?v=6" alt="Lab Buddies Logo" width={44} height={44} className="h-10 w-10 sm:h-11 sm:w-11 object-contain rounded-xl" />
+            <span className="font-extrabold tracking-tight text-lg sm:text-xl text-[#f4f4f5] flex items-center font-sans">
+              Lab<span className="text-[#FFD600]">Buddies</span>
+            </span>
           </Link>
           <Link href="/login">
             <Button variant="white" size="sm">

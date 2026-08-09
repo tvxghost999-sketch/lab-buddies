@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/logo.png?v=5",
+        url: "/og-image.png?v=6",
         width: 1200,
         height: 630,
         alt: "Lab Buddies - Free No-Login File & Code Sharing Platform",
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Lab Buddies — Share Files & Code with No Login | Snapdrop Alternative",
     description: "Instant ephemeral study rooms for students. Share files, code snippets, notes, and links anonymously with a 6-digit Room PIN.",
-    images: ["/logo.png?v=5"],
+    images: ["/og-image.png?v=6"],
     creator: "@labbuddies",
   },
   robots: {
@@ -92,13 +92,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
-      { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
+      { url: '/favicon.ico?v=6', sizes: 'any' },
+      { url: '/icon-192.png?v=6', type: 'image/png', sizes: '192x192' },
+      { url: '/icon-512.png?v=6', type: 'image/png', sizes: '512x512' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: '/favicon.ico?v=6',
     apple: [
-      { url: '/icon-192.png', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-touch-icon.png?v=6', sizes: '180x180', type: 'image/png' },
     ],
   },
 };
@@ -116,22 +116,50 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LabBuddies" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
-        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="icon" href="/favicon.ico?v=6" sizes="any" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=6" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=6" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=6" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=6" />
+        <link rel="shortcut icon" href="/favicon.ico?v=6" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: 'Lab Buddies',
-              url: 'https://labbuddies.hariommodi.online',
-              logo: 'https://labbuddies.hariommodi.online/icon-512.png',
-              sameAs: ['https://labbuddies.hariommodi.online'],
-            }),
+            __html: JSON.stringify([
+              {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'Lab Buddies',
+                url: 'https://labbuddies.hariommodi.online',
+                description: 'Free, instant, no-login study workspace for students. Share code snippets, lab files, and notes with a 6-digit Room PIN.',
+                potentialAction: {
+                  '@type': 'SearchAction',
+                  target: 'https://labbuddies.hariommodi.online/join?pin={search_term_string}',
+                  'query-input': 'required name=search_term_string'
+                }
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'Lab Buddies',
+                url: 'https://labbuddies.hariommodi.online',
+                logo: 'https://labbuddies.hariommodi.online/logo.png',
+                image: 'https://labbuddies.hariommodi.online/icon-512.png',
+                sameAs: ['https://labbuddies.hariommodi.online'],
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'WebApplication',
+                name: 'Lab Buddies',
+                url: 'https://labbuddies.hariommodi.online',
+                applicationCategory: 'EducationalApplication',
+                operatingSystem: 'All',
+                browserRequirements: 'Requires JavaScript. Requires HTML5.',
+                description: 'Instant ephemeral study workspace for students. Share files, code snippets, notes, and links anonymously with a 6-digit Room PIN.',
+                image: 'https://labbuddies.hariommodi.online/icon-512.png',
+                screenshot: 'https://labbuddies.hariommodi.online/og-image.png'
+              }
+            ]),
           }}
         />
       </head>
