@@ -51,7 +51,6 @@ export default function Navbar() {
             className="h-12 sm:h-14 w-auto object-contain my-auto"
           />
         </Link>
-
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-1">
           {[
