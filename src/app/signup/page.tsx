@@ -39,15 +39,17 @@ function CustomSelect({ label, icon, value, options, onChange, disabled }: Custo
         <button
           type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
-          className="neo-input w-full text-sm flex items-center justify-between text-left pl-9 pr-6"
-          style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+          className="neo-input w-full text-sm text-left"
+          style={{ cursor: disabled ? 'not-allowed' : 'pointer', paddingLeft: '2.25rem', paddingRight: '2rem' }}
           disabled={disabled}
         >
-          <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          {/* Left icon */}
+          <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none z-10">
             {icon}
           </span>
-          <span className="truncate">{value || 'Select option...'}</span>
-          <span className="text-[8px] text-white/40 select-none">▼</span>
+          <span className="truncate block">{value || 'Select option...'}</span>
+          {/* Chevron */}
+          <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-white/40 text-[8px]">▼</span>
         </button>
 
         {isOpen && (
@@ -128,6 +130,7 @@ export default function SignupPage() {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     country: 'India',
     state: 'Karnataka'
   });
@@ -151,7 +154,7 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password || !form.country || !form.state) {
+    if (!form.name || !form.email || !form.password || !form.confirmPassword || !form.country || !form.state) {
       addToast('Please fill out all fields.', 'warning');
       return;
     }
@@ -170,6 +173,11 @@ export default function SignupPage() {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     if (!passwordRegex.test(form.password)) {
       addToast('Password does not meet the strength requirements.', 'error');
+      return;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      addToast('Passwords do not match.', 'error');
       return;
     }
 
@@ -308,6 +316,37 @@ export default function SignupPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Confirm Password */}
+            <div className="flex flex-col gap-1.5 text-left">
+              <label className="text-[10px] font-medium uppercase text-[#a1a1aa] tracking-wider">Confirm Password</label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3.5 flex items-center pointer-events-none text-white/40 z-10">
+                  <Lock className="h-4 w-4" />
+                </span>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  className={`neo-input has-icon-left w-full text-sm ${
+                    form.confirmPassword.length > 0
+                      ? form.password === form.confirmPassword
+                        ? 'border-[#22C55E]/40'
+                        : 'border-[#EF4444]/40'
+                      : ''
+                  }`}
+                  disabled={loading}
+                />
+                {form.confirmPassword.length > 0 && (
+                  <span className={`absolute right-3.5 text-xs font-bold ${
+                    form.password === form.confirmPassword ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                  }`}>
+                    {form.password === form.confirmPassword ? '✓' : '✗'}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Country & State custom select row */}

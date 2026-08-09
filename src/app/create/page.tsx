@@ -73,15 +73,20 @@ export default function CreateRoomPage() {
   };
 
 
-  const maxMembersOptions = isPremium ? [
+  const maxMembersOptions = [
     { value: 5, label: '5 Members' },
     { value: 10, label: '10 Members' },
+    { value: 15, label: '15 Members' },
     { value: 20, label: '20 Members' },
+    { value: 25, label: '25 Members' },
+    { value: 30, label: '30 Members' },
+    { value: 40, label: '40 Members' },
     { value: 50, label: '50 Members' },
+    { value: 60, label: '60 Members' },
+    { value: 70, label: '70 Members' },
+    { value: 80, label: '80 Members' },
+    { value: 90, label: '90 Members' },
     { value: 100, label: '100 Members' },
-  ] : [
-    { value: 5, label: '5 Members' },
-    { value: 10, label: '10 Members' },
   ];
 
   const autoDeleteOptions = isPremium ? [
