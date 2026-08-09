@@ -530,26 +530,73 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
     if (resend) {
       try {
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@hariommodi.online';
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'contact@hariommodi.online';
         await resend.emails.send({
           from: `Lab Buddies <${fromEmail}>`,
           to: email,
-          subject: 'Verification OTP - Lab Buddies',
+          subject: '🔐 Your Verification Code — Lab Buddies',
           html: `
-            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; border: 3px solid #111111; border-radius: 12px; padding: 24px; background-color: #FFFDF9; box-shadow: 4px 4px 0px 0px #111111;">
-              <h2 style="font-size: 22px; font-weight: 900; text-transform: uppercase; color: #111111; margin-top: 0; border-bottom: 3px solid #111111; padding-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                ⚡ Lab Buddies
-              </h2>
-              <p style="font-size: 14px; font-weight: 700; color: #111111; margin-top: 16px;">
-                Hello there! Use the verification OTP code below to verify your account:
-              </p>
-              <div style="background-color: #FFD600; border: 3px solid #111111; border-radius: 8px; padding: 16px; text-align: center; font-size: 32px; font-weight: 900; letter-spacing: 4px; color: #111111; margin: 24px 0; box-shadow: 3px 3px 0px 0px #111111;">
-                ${otp}
-              </div>
-              <p style="font-size: 11px; font-weight: 700; color: #111111; opacity: 0.6; margin-bottom: 0; line-height: 1.5;">
-                This code is valid for 10 minutes. If you did not request this code, you can safely ignore this email.
-              </p>
-            </div>
+            <!DOCTYPE html>
+            <html lang="en">
+              <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                <title>Verify your Lab Buddies account</title>
+              </head>
+              <body style="margin:0;padding:0;width:100%;background-color:#09090b;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                <div style="width:100%;max-width:600px;margin:0 auto;padding:16px 8px;box-sizing:border-box;">
+                  <div style="background-color:#121215;border:1px solid rgba(255,255,255,0.1);border-radius:18px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.8);">
+
+                    <!-- Top accent bar -->
+                    <div style="background:linear-gradient(90deg,#FFD600 0%,#FF6A00 100%);height:4px;width:100%;"></div>
+
+                    <!-- Header -->
+                    <div style="padding:32px 24px 20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);text-align:center;">
+                      <div style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:0.05em;margin-bottom:4px;">LAB BUDDIES</div>
+                      <div style="font-size:12px;color:#FFD600;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;">Instant Study Rooms — No Login Required</div>
+                    </div>
+
+                    <!-- Body -->
+                    <div style="padding:28px 24px;">
+                      <div style="font-size:22px;font-weight:800;color:#ffffff;margin-bottom:14px;letter-spacing:-0.02em;">Verify your account 👋</div>
+                      <div style="font-size:15px;color:#a1a1aa;line-height:1.7;margin-bottom:24px;">
+                        Use the one-time verification code below to confirm your Lab Buddies account. This code expires in <strong style="color:#f4f4f5;">10 minutes</strong>.
+                      </div>
+
+                      <!-- OTP Box -->
+                      <div style="background:rgba(255,214,0,0.08);border:2px solid rgba(255,214,0,0.4);border-radius:14px;padding:28px 20px;text-align:center;margin:0 0 24px 0;">
+                        <div style="font-size:11px;font-weight:700;color:#FFD600;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:16px;">Your Verification Code</div>
+                        <div style="font-size:42px;font-weight:900;letter-spacing:10px;color:#FFD600;font-variant-numeric:tabular-nums;">${otp}</div>
+                      </div>
+
+                      <!-- Steps -->
+                      <div style="background:#0e0e11;border-radius:14px;padding:18px 20px;margin-bottom:24px;">
+                        <div style="font-size:13px;font-weight:700;color:#ffffff;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em;">What happens next?</div>
+                        <div style="font-size:13px;color:#a1a1aa;margin-bottom:10px;">
+                          <span style="color:#FFD600;font-weight:bold;margin-right:10px;">✓</span>
+                          <strong style="color:#f4f4f5;">Enter the code</strong> on the verification screen in Lab Buddies.
+                        </div>
+                        <div style="font-size:13px;color:#a1a1aa;">
+                          <span style="color:#FFD600;font-weight:bold;margin-right:10px;">✓</span>
+                          <strong style="color:#f4f4f5;">Start collaborating</strong> — create study rooms, share files, and share code instantly.
+                        </div>
+                      </div>
+
+                      <div style="font-size:12px;color:#52525b;line-height:1.6;">
+                        If you didn't create a Lab Buddies account, you can safely ignore this email. This code will expire automatically.
+                      </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div style="padding:20px 24px;background:#0c0c0e;border-top:1px solid rgba(255,255,255,0.06);text-align:center;font-size:12px;color:#71717a;line-height:1.6;">
+                      <div>Lab Buddies — Free, no-login study rooms for students</div>
+                      <div>© 2026 Lab Buddies. All rights reserved.</div>
+                    </div>
+
+                  </div>
+                </div>
+              </body>
+            </html>
           `
         });
         console.log(`[RESEND EMAIL] Successfully sent OTP to ${email}`);
