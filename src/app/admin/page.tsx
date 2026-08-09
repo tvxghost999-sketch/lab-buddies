@@ -16,6 +16,7 @@ import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
 import { getAdminHeaders, getStoredUser, getBackendUrl, clearAdminAuth, ADMIN_LOGIN_PATH } from '@/lib/adminAuth';
+import { normalizeFileUrl } from '@/lib/cloudinary';
 
 interface AdminMetrics {
   activeRooms: number;
@@ -136,6 +137,15 @@ export default function AdminDashboardPage() {
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   const BACKEND_URL = getBackendUrl();
+
+  const resolveFileLink = (url?: string) => {
+    if (!url) return '#';
+    let resolved = normalizeFileUrl(url);
+    if (resolved.startsWith('/uploads/')) {
+      resolved = `${BACKEND_URL}${resolved}`;
+    }
+    return resolved;
+  };
 
   // Verify Admin Authentication
   useEffect(() => {
@@ -845,7 +855,7 @@ export default function AdminDashboardPage() {
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <a
-                                href={file.fileUrl}
+                                href={resolveFileLink(file.fileUrl)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-[#a1a1aa] hover:text-[#f4f4f5] transition-all cursor-pointer"

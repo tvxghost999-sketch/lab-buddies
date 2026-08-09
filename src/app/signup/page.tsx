@@ -8,6 +8,7 @@ import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
 import Image from 'next/image';
+import { getBackendUrl } from '@/lib/adminAuth';
 
 interface CustomSelectProps {
   label: string;
@@ -183,7 +184,7 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : `http://${window.location.hostname}:5000`);
+      const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

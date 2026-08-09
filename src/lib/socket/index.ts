@@ -1,15 +1,19 @@
 import { io, Socket } from 'socket.io-client';
 
-const getBackendUrl = () => {
+export const getBackendUrl = () => {
   if (process.env.NEXT_PUBLIC_BACKEND_URL) {
-    return process.env.NEXT_PUBLIC_BACKEND_URL;
+    const url = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (url.includes('lab-buddies-backend.onrender.com')) {
+      return 'https://lab-buddies-7r70.onrender.com';
+    }
+    return url;
   }
   if (typeof window !== 'undefined') {
-    return window.location.hostname === 'localhost' 
+    return (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       ? 'http://localhost:5000' 
-      : `http://${window.location.hostname}:5000`;
+      : 'https://lab-buddies-7r70.onrender.com';
   }
-  return 'http://127.0.0.1:5000';
+  return 'https://lab-buddies-7r70.onrender.com';
 };
 
 const BACKEND_URL = getBackendUrl();

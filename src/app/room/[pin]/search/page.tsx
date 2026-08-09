@@ -12,6 +12,8 @@ import { Select } from '@/components/ui/input';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import AdInterstitial from '@/components/AdInterstitial';
+import { getBackendUrl } from '@/lib/adminAuth';
+import { normalizeFileUrl } from '@/lib/cloudinary';
 
 interface SearchResultItem {
   id: string;
@@ -48,7 +50,7 @@ export default function SearchPage() {
   const [pendingDownload, setPendingDownload] = useState<{ fileId: string; fileName: string; fileUrl?: string } | null>(null);
   const lastDownloadTimesRef = useRef<Record<string, number>>({});
   
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = getBackendUrl();
 
   const handleDownload = (fileId: string, fileName: string, fileUrl?: string) => {
     // 10-second download throttle anti-spam protection
@@ -61,12 +63,17 @@ export default function SearchPage() {
     lastDownloadTimesRef.current[fileId] = now;
 
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
+    
+    if (isPremium) {
+      proceedWithDownload(fileId, fileName, fileUrl);
+      return;
+    }
 
     const countStr = typeof window !== 'undefined' ? (localStorage.getItem('lab_buddies_downloads_count') || '0') : '0';
     const count = parseInt(countStr, 10);
     const nextCount = count + 1;
 
-    if (!isPremium && nextCount > 0 && nextCount % 4 === 0) {
+    if (nextCount > 0 && nextCount % 4 === 0) {
       setPendingDownload({ fileId, fileName, fileUrl });
       setIsAdOpen(true);
     } else {
@@ -80,13 +87,13 @@ export default function SearchPage() {
   const proceedWithDownload = (fileId: string, fileName: string, fileUrl?: string) => {
     setIsAdOpen(false);
     setPendingDownload(null);
-    if (!fileUrl) {
-      addToast('Download link is missing.', 'error');
-      return;
+    let targetUrl = fileUrl ? normalizeFileUrl(fileUrl) : '';
+    if (!targetUrl || targetUrl.startsWith('/uploads/')) {
+      targetUrl = `${BACKEND_URL}${targetUrl ? targetUrl : `/uploads/${fileName}`}`;
     }
     socketService.trackDownload(pin, fileId, currentUser?.id || currentUser?.name || 'anonymous');
     const link = document.createElement('a');
-    link.href = fileUrl;
+    link.href = targetUrl;
     link.target = '_blank';
     link.download = fileName;
     document.body.appendChild(link);

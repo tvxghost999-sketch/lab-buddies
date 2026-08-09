@@ -27,7 +27,4 @@ services:
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
-        fromService:
-          name: lab-buddies-backend
-          type: web
-          property: host
+        value: https://lab-buddies-7r70.onrender.com

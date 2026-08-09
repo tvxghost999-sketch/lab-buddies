@@ -856,7 +856,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       } catch (cloudinaryErr) {
         console.error('Cloudinary upload error, falling back to local storage URL:', cloudinaryErr);
         // Fall back to local URL if Cloudinary fails
-        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        const hostHeader = req.get('host') || '';
+        const hostBase = hostHeader.includes('render.com') ? 'https://lab-buddies-7r70.onrender.com' : `${req.protocol}://${hostHeader}`;
+        const fileUrl = `${hostBase}/uploads/${req.file.filename}`;
         return res.status(200).json({
           fileName: req.file.originalname,
           fileSize: fileSizeStr,
@@ -868,7 +870,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 
     // Default local storage fallback if Cloudinary is not configured
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    const hostHeader = req.get('host') || '';
+    const hostBase = hostHeader.includes('render.com') ? 'https://lab-buddies-7r70.onrender.com' : `${req.protocol}://${hostHeader}`;
+    const fileUrl = `${hostBase}/uploads/${req.file.filename}`;
     return res.status(200).json({
       fileName: req.file.originalname,
       fileSize: fileSizeStr,
@@ -1036,10 +1040,22 @@ app.patch('/api/admin/rooms/:pin/toggle-lock', adminAuthMiddleware, async (req, 
   }
 });
 
+const sanitizeFileUrl = (url, req) => {
+  if (!url) return url;
+  return url.replace(/lab-buddies-backend\.onrender\.com/g, 'lab-buddies-7r70.onrender.com');
+};
+
 // 5. Admin Files List
 app.get('/api/admin/files', adminAuthMiddleware, async (req, res) => {
   try {
-    const files = await FeedItem.find({ type: 'file' }).sort({ _id: -1 }).limit(200);
+    const rawFiles = await FeedItem.find({ type: 'file' }).sort({ _id: -1 }).limit(200);
+    const files = rawFiles.map(f => {
+      const obj = f.toObject();
+      if (obj.fileUrl) {
+        obj.fileUrl = sanitizeFileUrl(obj.fileUrl, req);
+      }
+      return obj;
+    });
     return res.status(200).json({ files });
   } catch (err) {
     console.error('[ADMIN FILES ERROR]:', err);

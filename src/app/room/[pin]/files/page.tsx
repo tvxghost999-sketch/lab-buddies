@@ -13,6 +13,8 @@ import Card from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
 import Button from '@/components/ui/button';
 import AdInterstitial from '@/components/AdInterstitial';
+import { getBackendUrl } from '@/lib/adminAuth';
+import { normalizeFileUrl } from '@/lib/cloudinary';
 
 export default function FilesPage() {
   const params = useParams();
@@ -33,7 +35,7 @@ export default function FilesPage() {
   const lastDownloadTimesRef = useRef<Record<string, number>>({});
   
   const loggedInUser = useRoomStore((state) => state.loggedInUser);
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = getBackendUrl();
 
   const handleDownload = (fileId: string, fileName: string, fileUrl?: string) => {
     // 10-second download throttle anti-spam protection
@@ -69,13 +71,12 @@ export default function FilesPage() {
 
   const proceedWithDownload = (fileId: string, fileName: string, fileUrl?: string) => {
     socketService.trackDownload(pin, fileId, currentUser?.id || currentUser?.name || 'anonymous');
-    if (fileUrl) {
-      window.open(fileUrl, '_blank');
-      addToast(`Downloading ${fileName}...`, 'success');
-    } else {
-      window.open(`${BACKEND_URL}/uploads/${fileName}`, '_blank');
-      addToast(`Downloading ${fileName}...`, 'success');
+    let targetUrl = fileUrl ? normalizeFileUrl(fileUrl) : '';
+    if (!targetUrl || targetUrl.startsWith('/uploads/')) {
+      targetUrl = `${BACKEND_URL}${targetUrl ? targetUrl : `/uploads/${fileName}`}`;
     }
+    window.open(targetUrl, '_blank');
+    addToast(`Downloading ${fileName}...`, 'success');
     setIsAdOpen(false);
     setPendingDownload(null);
   };

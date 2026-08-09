@@ -10,6 +10,7 @@ import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
+import { getBackendUrl } from '@/lib/adminAuth';
 
 export default function LabAttendancePage() {
   const params = useParams();
@@ -23,7 +24,7 @@ export default function LabAttendancePage() {
   const addToast = useRoomStore((state) => state.addToast);
 
   const isHost = currentUser?.role === 'host';
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = getBackendUrl();
 
   const [sessionTitle, setSessionTitle] = useState('');
   const [minMinutesInput, setMinMinutesInput] = useState('10');

@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
-import { getThumbnailUrl, getPreviewUrl } from '@/lib/cloudinary';
+import { getThumbnailUrl, getPreviewUrl, normalizeFileUrl } from '@/lib/cloudinary';
+import { getBackendUrl } from '@/lib/adminAuth';
 import Card from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
 import Button from '@/components/ui/button';
@@ -353,7 +354,7 @@ export default function RoomDashboard() {
   }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = getBackendUrl();
 
   const uploadFile = async (file: File) => {
     if (!file) return;
@@ -610,10 +611,15 @@ export default function RoomDashboard() {
     // Track download analytics
     socketService.trackDownload(pin, fileId, currentUser?.id || currentUser?.name || 'anonymous');
 
+    let targetUrl = normalizeFileUrl(fileUrl);
+    if (!targetUrl || targetUrl.startsWith('/uploads/')) {
+      targetUrl = `${BACKEND_URL}${targetUrl ? targetUrl : `/uploads/${fileName}`}`;
+    }
+
     // Simulate WhatsApp smooth download progress and download to disk
     setTimeout(() => {
       const link = document.createElement('a');
-      link.href = fileUrl;
+      link.href = targetUrl;
       link.target = '_blank';
       link.download = fileName;
       document.body.appendChild(link);
@@ -632,8 +638,12 @@ export default function RoomDashboard() {
   };
 
   const handleDirectDownload = (fileName: string, fileUrl: string) => {
+    let targetUrl = normalizeFileUrl(fileUrl);
+    if (!targetUrl || targetUrl.startsWith('/uploads/')) {
+      targetUrl = `${BACKEND_URL}${targetUrl ? targetUrl : `/uploads/${fileName}`}`;
+    }
     const link = document.createElement('a');
-    link.href = fileUrl;
+    link.href = targetUrl;
     link.target = '_blank';
     link.download = fileName;
     document.body.appendChild(link);

@@ -11,6 +11,7 @@ import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useRoomStore } from '@/store/roomStore';
 import Image from 'next/image';
+import { getBackendUrl } from '@/lib/adminAuth';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -57,7 +58,7 @@ export default function ProfilePage() {
   const handleSendOtp = async () => {
     setLoading(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : `http://${window.location.hostname}:5000`);
+      const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,7 +141,7 @@ export default function ProfilePage() {
     }, 65);
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : `http://${window.location.hostname}:5000`);
+      const backendUrl = getBackendUrl();
       
       const delayPromise = new Promise(resolve => setTimeout(resolve, 1500));
       const apiPromise = fetch(`${backendUrl}/api/auth/verify-otp`, {
