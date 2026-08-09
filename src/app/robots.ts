@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://lab-buddies-bme8.onrender.com/sitemap.xml',
+    sitemap: (process.env.NEXT_PUBLIC_APP_URL || 'https://labbuddies.hariommodi.online') + '/sitemap.xml',
   };
 }

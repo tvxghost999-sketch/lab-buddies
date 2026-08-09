@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://lab-buddies-bme8.onrender.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://labbuddies.hariommodi.online';
   const routes = [
     { path: '', priority: 1.0, changeFrequency: 'daily' as const },
     { path: '/features', priority: 0.9, changeFrequency: 'weekly' as const },

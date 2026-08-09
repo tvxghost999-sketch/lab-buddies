@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     "real-time lab attendance tracker",
     "self destructing file share"
   ],
-  authors: [{ name: "Lab Buddies Team", url: "https://lab-buddies-bme8.onrender.com" }],
+  authors: [{ name: "Lab Buddies Team", url: "https://labbuddies.hariommodi.online" }],
   creator: "Lab Buddies",
   publisher: "Lab Buddies",
   formatDetection: {
@@ -51,14 +51,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://lab-buddies-bme8.onrender.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://labbuddies.hariommodi.online"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "Lab Buddies — Share Files & Code Snippets with No Login",
     description: "Instant, temporary study rooms for students. Share files, code snippets, notes, and links anonymously with a 6-digit Room PIN.",
-    url: "https://lab-buddies-bme8.onrender.com",
+    url: "https://labbuddies.hariommodi.online",
     siteName: "Lab Buddies",
     locale: "en_US",
     type: "website",

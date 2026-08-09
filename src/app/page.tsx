@@ -141,7 +141,7 @@ export default function LandingPage() {
               "@context": "https://schema.org",
               "@type": "WebApplication",
               "name": "Lab Buddies",
-              "url": "https://lab-buddies-bme8.onrender.com",
+              "url": "https://labbuddies.hariommodi.online",
               "applicationCategory": "EducationalApplication, UtilitiesApplication",
               "operatingSystem": "All",
               "description": "Free, no login temporary study room workspace for students. Share files, code snippets, notes, and links instantly using a simple 6-digit room PIN.",
