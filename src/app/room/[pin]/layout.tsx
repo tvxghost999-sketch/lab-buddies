@@ -17,6 +17,7 @@ import Card from '@/components/ui/card';
 import { Switch } from '@/components/ui/input';
 import AdInterstitial from '@/components/AdInterstitial';
 import Image from 'next/image';
+import BannerAd from '@/components/BannerAd';
 
 
 

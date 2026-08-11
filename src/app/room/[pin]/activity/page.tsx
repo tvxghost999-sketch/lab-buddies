@@ -10,6 +10,7 @@ import {
 import { useRoomStore } from '@/store/roomStore';
 import Card from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
+import BannerAd from '@/components/BannerAd';
 
 export default function RoomActivityLog() {
   const params = useParams();
@@ -133,6 +134,11 @@ export default function RoomActivityLog() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Banner Ad */}
+        <div className="w-full select-none">
+          <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
         </div>
 
         {/* Timeline Log Card */}

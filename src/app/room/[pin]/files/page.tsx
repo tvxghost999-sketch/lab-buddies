@@ -15,6 +15,7 @@ import Button from '@/components/ui/button';
 import AdInterstitial from '@/components/AdInterstitial';
 import { getBackendUrl } from '@/lib/adminAuth';
 import { normalizeFileUrl } from '@/lib/cloudinary';
+import BannerAd from '@/components/BannerAd';
 import {
   isFileCached,
   fetchAndCacheFile,
@@ -422,6 +423,11 @@ export default function FilesPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Banner Ad */}
+      <div className="w-full select-none">
+        <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
       </div>
 
       {/* Files display */}

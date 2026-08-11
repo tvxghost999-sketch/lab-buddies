@@ -445,6 +445,11 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Banner Ad */}
+          <div className="w-full select-none">
+            <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
+          </div>
+
           {/* Card 2: Room Information */}
           <div className="glass-card p-4 flex flex-col gap-4 text-left">
             <div className="flex items-center gap-1.5 border-b border-white/[0.06] pb-2 text-xs uppercase tracking-wider text-[#f4f4f5] font-medium">
@@ -477,11 +482,6 @@ export default function SettingsPage() {
                 </span>
               </div>
             </div>
-          </div>
-
-          {/* Banner Ad */}
-          <div className="w-full mt-4">
-            <BannerAd dark={true} className="!max-w-full border-white/[0.08]" />
           </div>
         </div>
 

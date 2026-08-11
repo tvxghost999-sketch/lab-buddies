@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import Button from '@/components/ui/button';
+import BannerAd from '@/components/BannerAd';
 
 export default function QRSharePage() {
   const params = useParams();
@@ -182,6 +183,11 @@ export default function QRSharePage() {
 
         </div>
 
+      </div>
+
+      {/* Banner Ad */}
+      <div className="w-full select-none mt-2">
+        <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
       </div>
     </div>
   );

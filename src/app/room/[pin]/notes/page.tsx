@@ -10,6 +10,7 @@ import { useRoomStore } from '@/store/roomStore';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import Modal from '@/components/ui/modal';
+import BannerAd from '@/components/BannerAd';
 
 export default function NotesPage() {
   const params = useParams();
@@ -129,6 +130,11 @@ export default function NotesPage() {
           </div>
         </div>
       )}
+
+      {/* Banner Ad */}
+      <div className="w-full select-none">
+        <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
+      </div>
 
       {/* Notes container */}
       {sortedNotes.length === 0 ? (

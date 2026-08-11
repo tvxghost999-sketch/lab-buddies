@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import Button from '@/components/ui/button';
+import BannerAd from '@/components/BannerAd';
 
 export default function MembersPage() {
   const params = useParams();
@@ -122,6 +123,11 @@ export default function MembersPage() {
         <div className="hidden sm:block text-xs text-[#71717a] select-none">
           Showing {filteredMembers.length} of {members.length} members
         </div>
+      </div>
+
+      {/* Banner Ad */}
+      <div className="w-full select-none">
+        <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
       </div>
 
       {/* Members Directory Table Container (Desktop view) */}
