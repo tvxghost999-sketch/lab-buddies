@@ -10,6 +10,8 @@ import { useRoomStore } from '@/store/roomStore';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import { Switch, Select } from '@/components/ui/input';
+import { socketService } from '@/lib/socket';
+import BannerAd from '@/components/BannerAd';
 
 export default function SettingsPage() {
   const params = useParams();
@@ -323,6 +325,57 @@ export default function SettingsPage() {
                     );
                   }}
                 />
+
+                <div className="border-t border-white/[0.06] pt-4 mt-2">
+                  <span className="text-[11px] uppercase tracking-wider text-[#71717a] font-bold block mb-3">
+                    Voice Room Controls
+                  </span>
+                  
+                  <div className="flex flex-col gap-4">
+                    <Switch
+                      label="Lock Mics (Prevent members from unmuting)"
+                      disabled={!isHost}
+                      checked={activeRoom?.voiceMicsLocked || false}
+                      onCheckedChange={(val) => {
+                        showConfirm(
+                          val ? 'Lock Voice Mics' : 'Unlock Voice Mics',
+                          val 
+                            ? 'Are you sure you want to lock all microphones? Members will be force-muted and unable to unmute themselves.' 
+                            : 'Are you sure you want to unlock microphones? Members will be allowed to unmute.',
+                          () => {
+                            if (val) {
+                              socketService.emitVoiceLockMics(pin);
+                            } else {
+                              socketService.emitVoiceUnlockMics(pin);
+                            }
+                          }
+                        );
+                      }}
+                    />
+
+                    <div className="flex items-center justify-between py-1.5 border-t border-white/[0.04] mt-1">
+                      <div className="flex flex-col text-left">
+                        <span className="text-xs font-semibold text-[#f4f4f5]">Mute All Microphones</span>
+                        <p className="text-[10px] text-[#71717a] leading-tight mt-0.5">
+                          Force-mute all current active speakers immediately.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        disabled={!isHost}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs border-[#EF4444]/25 hover:bg-[#EF4444]/10 hover:text-[#EF4444] transition-colors"
+                        onClick={() => {
+                          socketService.emitVoiceMuteAll(pin);
+                          addToast('🎙️ All voice microphones force-muted.', 'info');
+                        }}
+                      >
+                        Mute All
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Save Button */}
@@ -424,6 +477,11 @@ export default function SettingsPage() {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Banner Ad */}
+          <div className="w-full mt-4">
+            <BannerAd dark={true} className="!max-w-full border-white/[0.08]" />
           </div>
         </div>
 

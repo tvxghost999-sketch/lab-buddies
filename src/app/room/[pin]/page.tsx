@@ -9,7 +9,7 @@ import {
   Sparkles, Crown, Terminal, MessageSquare, MoreVertical,
   FileText, ShieldCheck, HelpCircle, Check, X,
   FileArchive, FileCode, FileImage, Lock, Users, Activity, Smile, Eye, Maximize2, ExternalLink,
-  UploadCloud
+  UploadCloud, Mic, MicOff
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
@@ -19,6 +19,8 @@ import Card from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
 import Button from '@/components/ui/button';
 import AdInterstitial from '@/components/AdInterstitial';
+import BannerAd from '@/components/BannerAd';
+import { useVoiceRoom, useVoiceListener } from '@/hooks/useVoiceRoom';
 
 export default function RoomDashboard() {
   const params = useParams();
@@ -33,30 +35,82 @@ export default function RoomDashboard() {
   const showConfirm = useRoomStore((state) => state.showConfirm);
   const activeRoom = useRoomStore((state) => state.activeRoom);
 
+  // Calculate if room storage capacity is exceeded on client side
+  const isStorageFull = useMemo(() => {
+    const limit = activeRoom?.storageLimit || 25 * 1024 * 1024;
+    let totalBytes = 0;
+    feedItems.forEach((item) => {
+      if (item.type === 'file') {
+        if (item.fileSizeBytes) {
+          totalBytes += item.fileSizeBytes;
+        } else if (item.fileSize) {
+          const match = item.fileSize.match(/([\d.]+)\s*(KB|MB|GB|Bytes|B)/i);
+          if (match) {
+            const val = parseFloat(match[1]);
+            const unit = match[2].toUpperCase();
+            if (unit.startsWith('K')) totalBytes += val * 1024;
+            else if (unit.startsWith('M')) totalBytes += val * 1024 * 1024;
+            else if (unit.startsWith('G')) totalBytes += val * 1024 * 1024 * 1024;
+            else totalBytes += val;
+          }
+        }
+      }
+    });
+    return totalBytes >= limit;
+  }, [feedItems, activeRoom]);
+
+  // ── Voice: active mic control (this user) ──────────────────────────────────
+  const {
+    isConnected: isVoiceConnected,
+    isConnecting: isVoiceConnecting,
+    isMuted: isVoiceMuted,
+    areMicsLocked,
+    remoteStreams,
+    joinVoiceRoom,
+    leaveVoiceRoom,
+    toggleMute: toggleVoiceMute,
+  } = useVoiceRoom(pin, currentUser?.name || 'Anonymous');
+
+  // ── Voice: passive listener (hears speakers even without joining) ───────────
+  const { listenerStreams, isRoomMuted } = useVoiceListener(pin);
+
   // Composer mode: 'message' | 'code' | 'file'
   const [composerMode, setComposerMode] = useState<'message' | 'code' | 'file'>('message');
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
   const [isReactionMenuOpen, setIsReactionMenuOpen] = useState(false);
   const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const [fileCaption, setFileCaption] = useState('');
   const [isHdQuality, setIsHdQuality] = useState(true);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
   const attachmentRef = useRef<HTMLDivElement>(null);
   const chatFeedRef = useRef<HTMLDivElement>(null);
 
-  // Create local image preview url when file changes
+  // Create local image preview URLs when files change
   useEffect(() => {
-    if (!fileToUpload) {
-      setImagePreviewUrl('');
+    if (filesToUpload.length === 0) {
+      setImagePreviewUrls({});
       return;
     }
-    if (fileToUpload.type.startsWith('image/')) {
-      const url = URL.createObjectURL(fileToUpload);
-      setImagePreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [fileToUpload]);
+    const urls: Record<string, string> = {};
+    filesToUpload.forEach((file) => {
+      if (file.type.startsWith('image/')) {
+        urls[file.name] = URL.createObjectURL(file);
+      }
+    });
+    setImagePreviewUrls(urls);
+    return () => {
+      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [filesToUpload]);
+
+  // Leave voice on page unmount
+  useEffect(() => {
+    return () => {
+      if (isVoiceConnected) leaveVoiceRoom();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Scroll to bottom of the feed container when new messages arrive
   useEffect(() => {
@@ -374,89 +428,26 @@ export default function RoomDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const BACKEND_URL = getBackendUrl();
 
-  const handleFileUploadAndSend = async () => {
-    if (!fileToUpload) return;
-
-    if ((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host') {
-      addToast('You are muted and cannot upload files.', 'error');
-      return;
-    }
-
-    const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
-    const maxBytes = isPremium ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (fileToUpload.size > maxBytes) {
-      addToast(`File size exceeds limit (${isPremium ? '50 MB' : '5 MB'}).`, 'error');
-      return;
-    }
-
-    setIsFileUploading(true);
-    addToast(`Uploading ${fileToUpload.name}...`, 'info');
-    
-    const formData = new FormData();
-    formData.append('file', fileToUpload);
-    formData.append('pin', pin);
-    formData.append('hd', isHdQuality ? 'true' : 'false');
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        
-        const sender = currentUser || { id: 'temp-user', name: 'Anonymous', role: 'member', joinedAt: '12:00 PM', isOnline: true, isMuted: false };
-
-        addFeedItem({
-          type: 'file',
-          senderId: sender.id,
-          senderName: sender.name,
-          senderRole: sender.role,
-          fileName: data.fileName || data.originalName || fileToUpload.name,
-          fileSize: data.fileSize,
-          fileType: data.fileType,
-          fileUrl: data.fileUrl,
-          cloudinaryPublicId: data.cloudinaryPublicId || '',
-          content: fileCaption.trim() || undefined,
-        });
-
-        // Reset states
-        setFileToUpload(null);
-        setFileCaption('');
-        setComposerMode('message');
-        addToast('File shared successfully!', 'success');
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        if (errData.code === 'STORAGE_EXCEEDED') {
-          if (currentUser?.role === 'host') {
-            showConfirm(
-              "Storage Limit Reached",
-              `The room storage capacity has been reached. Would you like to expand the storage limit by 25MB by watching a 5-second advertisement on all connected devices?`,
-              () => {
-                socketService.emitTriggerStorageAdRequest(pin);
-              }
-            );
-          } else {
-            addToast("Storage capacity exceeded! Notifying host to expand the limit...", "warning");
-            socketService.emitMemberStorageFull(pin, currentUser?.name || 'Anonymous');
-          }
-        } else {
-          addToast(errData.error || 'File upload failed.', 'error');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      addToast('File upload failed due to network error.', 'error');
-    } finally {
-      setIsFileUploading(false);
-    }
-  };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFileToUpload(file);
+    if (isStorageFull) {
+      addToast('Storage limit reached! Please watch an ad to expand the limit by 25MB before uploading more files.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length > 0) {
+      const maxLimitBytes = 10 * 1024 * 1024; // 10MB
+      const totalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
+
+      // Check if total size exceeds 10MB
+      if (totalSize > maxLimitBytes) {
+        addToast(`File selection rejected: Total batch size exceeds the 10 MB limit (${(totalSize / (1024 * 1024)).toFixed(2)} MB selected).`, 'error');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      setFilesToUpload(selectedFiles);
       setIsCodeEditorOpen(false);
     }
   };
@@ -499,8 +490,21 @@ export default function RoomDashboard() {
       setIsDraggingOver(false);
 
       if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        setFileToUpload(file);
+        if (isStorageFull) {
+          addToast('Storage limit reached! Please watch an ad to expand the limit by 25MB before uploading more files.', 'error');
+          return;
+        }
+
+        const droppedFiles = Array.from(e.dataTransfer.files);
+        const maxLimitBytes = 10 * 1024 * 1024; // 10MB
+        const totalSize = droppedFiles.reduce((acc, file) => acc + file.size, 0);
+
+        if (totalSize > maxLimitBytes) {
+          addToast(`Drop rejected: Total batch size exceeds the 10 MB limit (${(totalSize / (1024 * 1024)).toFixed(2)} MB dropped).`, 'error');
+          return;
+        }
+
+        setFilesToUpload(droppedFiles);
         setIsCodeEditorOpen(false);
       }
     };
@@ -555,76 +559,88 @@ export default function RoomDashboard() {
       return;
     }
 
-    // 2. If a file is selected, upload and send it
-    if (fileToUpload) {
+    // 2. If files are selected, upload and send them
+    if (filesToUpload.length > 0) {
       if (isFileUploading) return;
+      if (isStorageFull) {
+        addToast('Cannot upload files: Room storage limit has been reached. Please watch an ad to expand storage.', 'error');
+        return;
+      }
       
-      const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
-      const maxBytes = isPremium ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-      if (fileToUpload.size > maxBytes) {
-        addToast(`File size exceeds limit (${isPremium ? '50 MB' : '5 MB'}).`, 'error');
+      const maxLimitBytes = 10 * 1024 * 1024; // 10MB
+      const totalSize = filesToUpload.reduce((acc, file) => acc + file.size, 0);
+      if (totalSize > maxLimitBytes) {
+        addToast(`File selection rejected: Total batch size exceeds the 10 MB limit (${(totalSize / (1024 * 1024)).toFixed(2)} MB selected).`, 'error');
         return;
       }
 
       setIsFileUploading(true);
-      addToast(`Uploading ${fileToUpload.name}...`, 'info');
-      
-      const formData = new FormData();
-      formData.append('file', fileToUpload);
-      formData.append('pin', pin);
-      formData.append('hd', isHdQuality ? 'true' : 'false');
+      let successCount = 0;
 
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/upload`, {
-          method: 'POST',
-          body: formData,
-        });
+      // Upload files sequentially
+      for (const file of filesToUpload) {
+        addToast(`Uploading ${file.name}...`, 'info');
         
-        if (res.ok) {
-          const data = await res.json();
-          
-          addFeedItem({
-            type: 'file',
-            senderId: sender.id,
-            senderName: sender.name,
-            senderRole: sender.role,
-            fileName: data.fileName || data.originalName || fileToUpload.name,
-            fileSize: data.fileSize,
-            fileType: data.fileType,
-            fileUrl: data.fileUrl,
-            cloudinaryPublicId: data.cloudinaryPublicId || '',
-            content: textContent.trim() || undefined,
-          });
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('pin', pin);
+        formData.append('hd', isHdQuality ? 'true' : 'false');
 
-          // Reset states
-          setFileToUpload(null);
-          setTextContent('');
-          addToast('File shared successfully!', 'success');
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          if (errData.code === 'STORAGE_EXCEEDED') {
-            if (currentUser?.role === 'host') {
-              showConfirm(
-                "Storage Limit Reached",
-                `The room storage capacity has been reached. Would you like to expand the storage limit by 25MB by watching a 5-second advertisement on all connected devices?`,
-                () => {
-                  socketService.emitTriggerStorageAdRequest(pin);
-                }
-              );
-            } else {
-              addToast("Storage capacity exceeded! Notifying host to expand the limit...", "warning");
-              socketService.emitMemberStorageFull(pin, currentUser?.name || 'Anonymous');
-            }
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            
+            addFeedItem({
+              type: 'file',
+              senderId: sender.id,
+              senderName: sender.name,
+              senderRole: sender.role,
+              fileName: data.fileName || data.originalName || file.name,
+              fileSize: data.fileSize,
+              fileType: data.fileType,
+              fileUrl: data.fileUrl,
+              cloudinaryPublicId: data.cloudinaryPublicId || '',
+              fileSizeBytes: data.fileSizeBytes,
+              content: textContent.trim() || undefined,
+            });
+            successCount++;
           } else {
-            addToast(errData.error || 'File upload failed.', 'error');
+            const errData = await res.json().catch(() => ({}));
+            if (errData.code === 'STORAGE_EXCEEDED') {
+              if (currentUser?.role === 'host') {
+                showConfirm(
+                  "Storage Limit Reached",
+                  `The room storage capacity has been reached. Would you like to expand the storage limit by 25MB by watching a 5-second advertisement on all connected devices?`,
+                  () => {
+                    socketService.emitTriggerStorageAdRequest(pin);
+                  }
+                );
+              } else {
+                addToast("Storage capacity exceeded! Notifying host to expand the limit...", "warning");
+                socketService.emitMemberStorageFull(pin, currentUser?.name || 'Anonymous');
+              }
+            } else {
+              addToast(errData.error || `Upload failed for ${file.name}.`, 'error');
+            }
           }
+        } catch (err) {
+          console.error(err);
+          addToast(`Upload failed for ${file.name} due to network error.`, 'error');
         }
-      } catch (err) {
-        console.error(err);
-        addToast('File upload failed due to network error.', 'error');
-      } finally {
-        setIsFileUploading(false);
       }
+
+      // Reset states
+      setFilesToUpload([]);
+      setTextContent('');
+      if (successCount > 0) {
+        addToast(`Shared ${successCount} file(s) successfully!`, 'success');
+      }
+      setIsFileUploading(false);
       return;
     }
 
@@ -849,20 +865,37 @@ export default function RoomDashboard() {
       {/* Global Drag and Drop File Overlay */}
       {isDraggingOver && (
         <div className="fixed inset-0 z-[9999] bg-[#050608]/85 backdrop-blur-md flex flex-col items-center justify-center p-6 select-none animate-in fade-in duration-150 pointer-events-none">
-          <div className="w-full max-w-lg p-10 border-3 border-dashed border-[#FFD600] rounded-3xl bg-[#FFD600]/10 flex flex-col items-center justify-center text-center gap-5 shadow-[0_0_80px_rgba(255,214,0,0.35)] scale-105 transition-transform duration-200">
-            <div className="w-24 h-24 rounded-3xl bg-[#FFD600]/20 border border-[#FFD600]/40 flex items-center justify-center text-[#FFD600] shadow-[0_0_40px_rgba(255,214,0,0.4)] animate-bounce">
-              <UploadCloud className="w-12 h-12" />
+          {isStorageFull ? (
+            <div className="w-full max-w-lg p-10 border-3 border-dashed border-[#EF4444] rounded-3xl bg-[#EF4444]/10 flex flex-col items-center justify-center text-center gap-5 shadow-[0_0_80px_rgba(239,68,68,0.35)] scale-105 transition-transform duration-200">
+              <div className="w-24 h-24 rounded-3xl bg-[#EF4444]/20 border border-[#EF4444]/40 flex items-center justify-center text-[#EF4444] shadow-[0_0_40px_rgba(239,68,68,0.4)] animate-bounce">
+                <ShieldCheck className="w-12 h-12" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="text-2xl font-black text-[#f4f4f5] tracking-tight">Storage Limit Reached</h3>
+                <p className="text-sm text-[#a1a1aa] max-w-sm leading-relaxed">
+                  You cannot upload files because this room's storage capacity is full.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs uppercase font-bold text-[#EF4444] tracking-wider bg-[#EF4444]/15 px-5 py-2 rounded-full border border-[#EF4444]/30 shadow-sm">
+                Watch an ad to unlock +25 MB
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <h3 className="text-2xl font-black text-[#f4f4f5] tracking-tight">Drop Your File Here</h3>
-              <p className="text-sm text-[#a1a1aa] max-w-sm leading-relaxed">
-                Release to upload your file directly to the chat composer.
-              </p>
+          ) : (
+            <div className="w-full max-w-lg p-10 border-3 border-dashed border-[#FFD600] rounded-3xl bg-[#FFD600]/10 flex flex-col items-center justify-center text-center gap-5 shadow-[0_0_80px_rgba(255,214,0,0.35)] scale-105 transition-transform duration-200">
+              <div className="w-24 h-24 rounded-3xl bg-[#FFD600]/20 border border-[#FFD600]/40 flex items-center justify-center text-[#FFD600] shadow-[0_0_40px_rgba(255,214,0,0.4)] animate-bounce">
+                <UploadCloud className="w-12 h-12" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="text-2xl font-black text-[#f4f4f5] tracking-tight">Drop Your File Here</h3>
+                <p className="text-sm text-[#a1a1aa] max-w-sm leading-relaxed">
+                  Release to upload your file directly to the chat composer.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs uppercase font-bold text-[#FFD600] tracking-wider bg-[#FFD600]/15 px-5 py-2 rounded-full border border-[#FFD600]/30 shadow-sm">
+                All file formats supported
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-xs uppercase font-bold text-[#FFD600] tracking-wider bg-[#FFD600]/15 px-5 py-2 rounded-full border border-[#FFD600]/30 shadow-sm">
-              All file formats supported
-            </div>
-          </div>
+          )}
         </div>
       )}
       <style>{`
@@ -1301,16 +1334,18 @@ export default function RoomDashboard() {
         )}
 
         {/* File Preview Card (Above Input) */}
-        {fileToUpload && (
-          <div className="border border-white/[0.08] rounded-xl p-3 bg-white/[0.02] flex flex-col gap-2">
+        {filesToUpload.length > 0 && (
+          <div className="border border-white/[0.08] rounded-xl p-3 bg-white/[0.02] flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#a1a1aa] uppercase tracking-wider font-semibold">File Selected</span>
+              <span className="text-xs text-[#a1a1aa] uppercase tracking-wider font-semibold">
+                Files Selected ({filesToUpload.length})
+              </span>
               {!isFileUploading && (
                 <button 
                   type="button"
-                  onClick={() => setFileToUpload(null)}
+                  onClick={() => setFilesToUpload([])}
                   className="text-[#EF4444] hover:bg-white/[0.06] p-1.5 rounded-lg transition-colors"
-                  title="Remove file"
+                  title="Remove all files"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1319,44 +1354,59 @@ export default function RoomDashboard() {
             {isFileUploading ? (
               <div className="w-full py-3 bg-[#4F7CFF]/15 border border-[#4F7CFF]/20 rounded-lg text-xs font-semibold text-[#4F7CFF] flex items-center justify-center gap-2 select-none">
                 <div className="w-4 h-4 border-2 border-white/20 border-t-[#4F7CFF] rounded-full animate-spin flex-shrink-0" />
-                <span>Uploading & Compressing File...</span>
+                <span>Uploading & Compressing {filesToUpload.length} File(s)...</span>
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between border border-white/[0.08] bg-white/[0.03] rounded-lg p-2.5 text-xs gap-4 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {imagePreviewUrl ? (
-                      <div className="w-9 h-9 rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
-                        <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar">
+                {filesToUpload.map((file, idx) => {
+                  const hasPreview = file.type.startsWith('image/') && imagePreviewUrls[file.name];
+                  return (
+                    <div key={file.name + '-' + idx} className="flex items-center justify-between border border-white/[0.08] bg-white/[0.03] rounded-lg p-2 text-xs gap-4 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {hasPreview ? (
+                          <div className="w-8 h-8 rounded overflow-hidden border border-white/10 flex-shrink-0">
+                            <img src={imagePreviewUrls[file.name]} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <File className="w-4 h-4 text-[#8B5CF6] flex-shrink-0" />
+                        )}
+                        <span className="truncate text-left font-semibold text-[#f4f4f5]">{file.name}</span>
+                        <span className="text-[#71717a] text-[10px] flex-shrink-0">
+                          ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                        </span>
                       </div>
-                    ) : (
-                      <File className="w-4 h-4 text-[#8B5CF6] flex-shrink-0" />
-                    )}
-                    <span className="truncate text-left font-semibold text-[#f4f4f5]">{fileToUpload.name}</span>
-                    <span className="text-[#71717a] text-[10px] flex-shrink-0">
-                      ({(fileToUpload.size / (1024 * 1024)).toFixed(2)} MB)
-                    </span>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => setFileToUpload(null)}
-                    className="text-[#EF4444] hover:underline text-[11px]"
-                  >
-                    Remove
-                  </button>
-                </div>
-                
-                {/* HD Quality Checkbox */}
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isHdQuality}
-                    onChange={(e) => setIsHdQuality(e.target.checked)}
-                    className="rounded border-white/20 bg-white/[0.03] text-[#FFD600] focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5"
-                  />
-                  <span className="text-xs text-[#a1a1aa] font-medium">Send in HD Quality (no compression)</span>
-                </label>
+                      <button 
+                        type="button"
+                        onClick={() => setFilesToUpload((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-[#EF4444] hover:underline text-[11px] px-1.5"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
+            )}
+
+            {/* Show total size progress or summary */}
+            <div className="flex justify-between items-center text-[10px] text-[#71717a] uppercase mt-1">
+              <span>Total Batch Size</span>
+              <span className={filesToUpload.reduce((acc, f) => acc + f.size, 0) > 10 * 1024 * 1024 ? 'text-red-400 font-bold' : 'text-[#f4f4f5]'}>
+                {(filesToUpload.reduce((acc, f) => acc + f.size, 0) / (1024 * 1024)).toFixed(2)} / 10.00 MB
+              </span>
+            </div>
+
+            {/* HD Quality Checkbox */}
+            {!isFileUploading && (
+              <label className="flex items-center gap-2 cursor-pointer select-none border-t border-white/[0.04] pt-2.5">
+                <input
+                  type="checkbox"
+                  checked={isHdQuality}
+                  onChange={(e) => setIsHdQuality(e.target.checked)}
+                  className="rounded border-white/20 bg-white/[0.03] text-[#FFD600] focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5"
+                />
+                <span className="text-xs text-[#a1a1aa] font-medium">Send in HD Quality (no compression)</span>
+              </label>
             )}
           </div>
         )}
@@ -1370,10 +1420,10 @@ export default function RoomDashboard() {
             {activeRoom?.isFileSharingEnabled && (
               <button
                 type="button"
-                disabled={((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host') || isFileUploading}
+                disabled={isStorageFull || ((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host') || isFileUploading}
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute left-3 p-1.5 text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-white/[0.06] rounded-lg hover:scale-105 transition-all disabled:opacity-30 disabled:pointer-events-none"
-                title="Choose file from computer"
+                title={isStorageFull ? "Storage limit reached. Expand storage to upload files." : "Choose file from computer"}
               >
                 <Paperclip className="w-4 h-4" />
               </button>
@@ -1384,6 +1434,7 @@ export default function RoomDashboard() {
               type="file" 
               ref={fileInputRef} 
               className="hidden" 
+              multiple
               onChange={handleFileChange} 
             />
 
@@ -1419,8 +1470,8 @@ export default function RoomDashboard() {
               placeholder={
                 (activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host' 
                   ? 'You are muted and cannot message' 
-                  : fileToUpload 
-                    ? 'Add a caption to the file...' 
+                  : filesToUpload.length > 0 
+                    ? 'Add a caption to the files...' 
                     : isCodeEditorOpen 
                       ? 'Add an explanation to the code snippet...' 
                       : 'Type your message here...'
@@ -1441,7 +1492,7 @@ export default function RoomDashboard() {
                 disabled={(activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host'}
                 onClick={() => {
                   setIsCodeEditorOpen(!isCodeEditorOpen);
-                  setFileToUpload(null);
+                  setFilesToUpload([]);
                 }}
                 className={`p-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none ${
                   isCodeEditorOpen ? 'text-[#FFD600] bg-white/[0.06]' : 'text-[#a1a1aa] hover:text-[#FFD600] hover:bg-white/[0.06]'
@@ -1466,8 +1517,54 @@ export default function RoomDashboard() {
 
           </div>
 
-          {/* Send Button */}
+          {/* Send Button + Mic Button */}
           <div className="flex gap-2 flex-shrink-0">
+
+            {/* Mic / Voice toggle button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isVoiceConnected) {
+                  toggleVoiceMute();
+                } else {
+                  joinVoiceRoom();
+                }
+              }}
+              disabled={isVoiceConnecting || (areMicsLocked && isVoiceMuted)}
+              title={
+                isVoiceConnecting   ? 'Connecting...' :
+                areMicsLocked       ? 'Mics locked by host' :
+                isVoiceConnected && isVoiceMuted ? 'Unmute mic' :
+                isVoiceConnected    ? 'Mute mic' :
+                'Join voice'
+              }
+              className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-[0.97] select-none flex-shrink-0 ${
+                isVoiceConnecting
+                  ? 'bg-white/[0.06] border border-white/[0.08] text-[#71717a] cursor-wait'
+                  : areMicsLocked
+                    ? 'bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] cursor-not-allowed opacity-70'
+                    : isVoiceConnected && isVoiceMuted
+                      ? 'bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/25'
+                      : isVoiceConnected
+                        ? 'bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E] hover:bg-[#22C55E]/25 animate-pulse'
+                        : 'bg-white/[0.04] border border-white/[0.08] text-[#71717a] hover:text-[#f4f4f5] hover:bg-white/[0.08]'
+              }`}
+            >
+              {isVoiceConnecting ? (
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+              ) : areMicsLocked ? (
+                <>
+                  <MicOff className="w-4 h-4" />
+                  <Lock className="w-2.5 h-2.5 absolute bottom-1 right-1 text-[#FFD600]" />
+                </>
+              ) : isVoiceConnected && isVoiceMuted ? (
+                <MicOff className="w-4 h-4" />
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* Send button */}
             <button 
               type="submit" 
               disabled={isCooldownActive || isFileUploading || (isCodeEditorOpen && !codeContent.trim()) || ((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host')}
@@ -1680,6 +1777,27 @@ export default function RoomDashboard() {
           </Card>
         </div>
       )}
+      {/* ── Hidden audio elements: active voice peers ── */}
+      {isVoiceConnected && Array.from(remoteStreams.entries()).map(([socketId, stream]) => (
+        <audio
+          key={`voice-active-${socketId}`}
+          ref={(el) => { if (el) { el.srcObject = stream; el.play().catch(() => {}); } }}
+          autoPlay
+          playsInline
+          className="absolute w-0 h-0 opacity-0 pointer-events-none"
+        />
+      ))}
+
+      {/* ── Hidden audio elements: passive listener (hears without joining) ── */}
+      {!isVoiceConnected && Array.from(listenerStreams.entries()).map(([socketId, stream]) => (
+        <audio
+          key={`voice-listener-${socketId}`}
+          ref={(el) => { if (el) { el.srcObject = stream; el.muted = isRoomMuted; el.play().catch(() => {}); } }}
+          autoPlay
+          playsInline
+          className="absolute w-0 h-0 opacity-0 pointer-events-none"
+        />
+      ))}
     </div>
   );
 }

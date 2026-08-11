@@ -160,6 +160,9 @@ export const socketService = {
   toggleMuteChat: (pin: string) => {
     socket?.emit('toggle-mute-chat', { pin });
   },
+  updateRoomSettings: (pin: string, settings: any) => {
+    socket?.emit('update-room-settings', { pin, settings });
+  },
   toggleMuteMember: (pin: string, memberId: string) => {
     socket?.emit('toggle-mute-member', { pin, memberId });
   },
@@ -253,6 +256,30 @@ export const socketService = {
   sendVoiceUnmute: (pin: string) => {
     socket?.emit('voice:unmute', { pin });
   },
+  // Host: force-mute all active voice participants
+  emitVoiceMuteAll: (pin: string) => {
+    socket?.emit('voice:mute-all', { pin });
+  },
+  // Host: lock all mics (members cannot unmute until unlocked)
+  emitVoiceLockMics: (pin: string) => {
+    socket?.emit('voice:lock-mics', { pin });
+  },
+  // Host: unlock all mics
+  emitVoiceUnlockMics: (pin: string) => {
+    socket?.emit('voice:unlock-mics', { pin });
+  },
+  // Participants: receive force-mute command from host
+  onVoiceForceMute: (callback: () => void) => {
+    bindListener('voice:force-mute', callback);
+  },
+  // All clients: notified when mics are locked by host
+  onVoiceMicsLocked: (callback: () => void) => {
+    bindListener('voice:mics-locked', callback);
+  },
+  // All clients: notified when mics are unlocked by host
+  onVoiceMicsUnlocked: (callback: () => void) => {
+    bindListener('voice:mics-unlocked', callback);
+  },
   onVoiceRoomUsers: (callback: (users: any[]) => void) => {
     bindListener('voice:room-users', callback);
   },
@@ -283,6 +310,14 @@ export const socketService = {
   onVoiceError: (callback: (data: { message: string }) => void) => {
     bindListener('voice:error', callback);
   },
+  // Passive listener: non-joined room member requests audio from an active speaker
+  sendVoiceListenRequest: (pin: string, targetSpeakerSocketId: string) => {
+    socket?.emit('voice:listen-request', { pin, targetSpeakerSocketId });
+  },
+  // Active speaker: called when a passive listener requests audio
+  onVoiceListenRequest: (callback: (data: { listenerSocketId: string }) => void) => {
+    bindListener('voice:listen-request', callback);
+  },
   onSocketConnect: (callback: () => void) => {
     if (socket) {
       socket.on('connect', callback);
@@ -292,6 +327,12 @@ export const socketService = {
     if (socket) {
       socket.off('connect', callback);
     }
+  },
+  emitTrackBannerImpression: () => {
+    socket?.emit('track-banner-impression');
+  },
+  emitTrackBannerClick: () => {
+    socket?.emit('track-banner-click');
   }
 };
 

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
 import AdInterstitial from '@/components/AdInterstitial';
+import BannerAd from '@/components/BannerAd';
 import Image from 'next/image';
 
 export default function JoinRoomPage() {
@@ -55,10 +56,15 @@ export default function JoinRoomPage() {
     socketService.connectKnock(waitingPin, waitingName, passwordInput);
   };
 
-  // Autofill guest name if logged in
+  // Autofill guest name if logged in, else use guest name from localStorage
   useEffect(() => {
     if (loggedInUser?.name) {
       setGuestName(loggedInUser.name);
+    } else if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lab_buddies_guest_name');
+      if (saved) {
+        setGuestName(saved);
+      }
     }
   }, [loggedInUser]);
 
@@ -293,6 +299,12 @@ export default function JoinRoomPage() {
       addToast('Please enter your buddy name. Name is compulsory.', 'error');
       return;
     }
+    
+    // Save to localStorage if not logged in
+    if (!loggedInUser && typeof window !== 'undefined') {
+      localStorage.setItem('lab_buddies_guest_name', nameToUse);
+    }
+    
     setIsAdOpen(false);
     
     setIsShuffling(true);
@@ -602,6 +614,11 @@ export default function JoinRoomPage() {
           </div>
         </div>
       )}
+
+      {/* Banner Ad Section */}
+      <div className="w-full max-w-md mx-auto px-4 mt-8 mb-4 relative z-10">
+        <BannerAd />
+      </div>
 
       <AdInterstitial 
         isOpen={isAdOpen} 

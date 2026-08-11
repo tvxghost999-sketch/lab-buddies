@@ -15,6 +15,7 @@ import {
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import Navbar from '@/components/Navbar';
+import BannerAd from '@/components/BannerAd';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -530,6 +531,11 @@ export default function LandingPage() {
           </div>
         </section>
       </main>
+
+      {/* Banner Ad Section */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 mt-10">
+        <BannerAd />
+      </div>
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/[0.06] py-6 mt-auto select-none bg-[#050608]">

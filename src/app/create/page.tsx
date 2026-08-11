@@ -9,6 +9,7 @@ import Card from '@/components/ui/card';
 import { Input, Select } from '@/components/ui/input';
 import { useRoomStore } from '@/store/roomStore';
 import AdInterstitial from '@/components/AdInterstitial';
+import BannerAd from '@/components/BannerAd';
 import Image from 'next/image';
 
 
@@ -44,10 +45,15 @@ export default function CreateRoomPage() {
     }
   }, [isPremium]);
 
-  // Autofill nickname if user is logged in
+  // Autofill nickname if user is logged in, else use guest name from localStorage
   useEffect(() => {
     if (loggedInUser?.name) {
       setHostName(loggedInUser.name);
+    } else if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lab_buddies_guest_name');
+      if (saved) {
+        setHostName(saved);
+      }
     }
   }, [loggedInUser]);
 
@@ -66,6 +72,9 @@ export default function CreateRoomPage() {
 
   const proceedWithCreation = async () => {
     const creatorName = hostName.trim() || 'Aman';
+    if (!loggedInUser && typeof window !== 'undefined') {
+      localStorage.setItem('lab_buddies_guest_name', creatorName);
+    }
     const autoDeleteTimer = formatDurationDisplay(durationMinutes);
     const newPin = await createRoom(roomName, maxMembers, autoDeleteTimer, roomPassword, creatorName);
     setIsAdOpen(false);
@@ -318,6 +327,11 @@ export default function CreateRoomPage() {
 
         </div>
       </main>
+
+      {/* Banner Ad Section */}
+      <div className="w-full max-w-md mx-auto px-4 mt-8 mb-4 relative z-10">
+        <BannerAd />
+      </div>
 
       <AdInterstitial
         isOpen={isAdOpen}

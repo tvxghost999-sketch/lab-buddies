@@ -34,6 +34,12 @@ interface AdminMetrics {
     totalDownloadsServed: number;
     totalStorageMBProcessed: string;
     totalArchivedSessions: number;
+    totalRewardAdsWatched?: number;
+    totalBannerImpressions?: number;
+    totalBannerClicks?: number;
+    ctrPercentage?: string;
+    pageRPM?: string;
+    estimatedRevenueRs?: string;
   };
 }
 
@@ -603,6 +609,82 @@ export default function AdminDashboardPage() {
                     {metrics?.lifetime?.totalStorageMBProcessed ?? '0.00'} <span className="text-sm font-normal text-[#71717a]">MB</span>
                   </span>
                   <span className="text-[11px] text-[#3B82F6]">Lifetime data transferred</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Estimated Ad Monetization & Revenue */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#EAB308] animate-pulse" />
+                <span className="text-xs font-bold text-[#EAB308] uppercase tracking-wider">
+                  💵 Google AdSense Simulated Estimation Dashboard
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                {/* 1. Estimated Revenue */}
+                <div className="glass-card p-5 flex flex-col gap-1 border border-[#EAB308]/20 bg-[#EAB308]/5 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-[#a1a1aa] font-semibold uppercase tracking-wider">Est. Earnings</span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#FFD600] tracking-tight">
+                    Rs. {metrics?.lifetime?.estimatedRevenueRs ?? '0.000'}
+                  </span>
+                  <span className="text-[9px] text-[#EAB308]">Lifetime simulated yield</span>
+                </div>
+
+                {/* 2. Page Impressions */}
+                <div className="glass-card p-5 flex flex-col gap-1 border border-white/[0.08]">
+                  <span className="text-[10px] text-[#a1a1aa] font-semibold uppercase tracking-wider">Impressions</span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#f4f4f5]">
+                    {((metrics?.lifetime?.totalBannerImpressions || 0) + (metrics?.lifetime?.totalRewardAdsWatched || 0))}
+                  </span>
+                  <span className="text-[9px] text-[#71717a]">Views served</span>
+                </div>
+
+                {/* 3. Clicks */}
+                <div className="glass-card p-5 flex flex-col gap-1 border border-white/[0.08]">
+                  <span className="text-[10px] text-[#a1a1aa] font-semibold uppercase tracking-wider">Clicks</span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#f4f4f5]">
+                    {metrics?.lifetime?.totalBannerClicks ?? 0}
+                  </span>
+                  <span className="text-[9px] text-[#71717a]">Ad CTA clicks</span>
+                </div>
+
+                {/* 4. Page CTR */}
+                <div className="glass-card p-5 flex flex-col gap-1 border border-white/[0.08]">
+                  <span className="text-[10px] text-[#a1a1aa] font-semibold uppercase tracking-wider">Page CTR</span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#22C55E]">
+                    {metrics?.lifetime?.ctrPercentage ?? '0.00'}%
+                  </span>
+                  <span className="text-[9px] text-[#22C55E]">Click-through rate</span>
+                </div>
+
+                {/* 5. Page RPM */}
+                <div className="glass-card p-5 flex flex-col gap-1 border border-white/[0.08]">
+                  <span className="text-[10px] text-[#a1a1aa] font-semibold uppercase tracking-wider">Page RPM</span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#3B82F6]">
+                    Rs. {metrics?.lifetime?.pageRPM ?? '0.00'}
+                  </span>
+                  <span className="text-[9px] text-[#3B82F6]">Revenue per 1,000 views</span>
+                </div>
+              </div>
+
+              {/* Formula & Yield Explainer Card */}
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex flex-col gap-1 text-left">
+                  <span className="text-xs font-bold text-[#f4f4f5]">AdSense Revenue Calculation Formula</span>
+                  <p className="text-[11px] text-[#a1a1aa] leading-relaxed max-w-2xl">
+                    Earnings = (Reward Ads × 0.10 Rs) + (Banner Impressions × 0.005 Rs) + (Banner Clicks × 0.50 Rs).
+                    Page RPM matches Google AdSense calculations to show the average yield per 1,000 mixed ad impressions.
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1.5 text-right flex-shrink-0">
+                  <span className="text-[10px] uppercase font-bold text-gray-500">Yield Breakdown</span>
+                  <div className="flex gap-3 text-[10px]">
+                    <span className="text-amber-500 font-bold">Reward Ad: 0.10 Rs</span>
+                    <span className="text-blue-500 font-bold">Banner Ad: 0.005 Rs</span>
+                    <span className="text-emerald-500 font-bold">Click (CPC): 0.50 Rs</span>
+                  </div>
                 </div>
               </div>
             </div>

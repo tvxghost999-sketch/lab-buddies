@@ -12,6 +12,7 @@ export interface Room {
   createdBy: string;
   status: 'Active' | 'Locked' | 'Expired';
   storageLimit?: number;
+  voiceMicsLocked?: boolean;
 }
 
 export interface Member {

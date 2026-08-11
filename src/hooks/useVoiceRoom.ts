@@ -16,6 +16,7 @@ export const useVoiceRoom = (pin: string, name: string) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [areMicsLocked, setAreMicsLocked] = useState(false);
   const [voiceUsers, setVoiceUsers] = useState<VoiceParticipant[]>([]);
   const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality>('connected');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -398,6 +399,28 @@ export const useVoiceRoom = (pin: string, name: string) => {
         cleanupAll();
       });
 
+      // When a passive listener requests audio from us (we are an active speaker),
+      // create an offer and send it to them so they can hear us.
+      socketService.onVoiceListenRequest(async ({ listenerSocketId }) => {
+        log(`Passive listener ${listenerSocketId} requested audio from us`);
+        if (!localStreamRef.current) return;
+
+        // Reuse existing peer connection if one already exists
+        let pc: RTCPeerConnection | null | undefined = peerConnectionsRef.current.get(listenerSocketId);
+        if (!pc) {
+          pc = initPeerConnection(listenerSocketId, true);
+        }
+        if (pc) {
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socketService.sendVoiceOffer(pin, listenerSocketId, offer);
+          } catch (err) {
+            log(`Error creating offer for passive listener ${listenerSocketId}:`, err);
+          }
+        }
+      });
+
       // Retrieve dynamic server config (STUN servers / limit)
       socketService.getVoiceConfig((config) => {
         log('Loaded server voice configuration:', config);
@@ -431,6 +454,11 @@ export const useVoiceRoom = (pin: string, name: string) => {
 
   // Toggle local mute
   const toggleMute = useCallback(() => {
+    // Block unmuting if host has locked all mics
+    if (areMicsLocked && isMuted) {
+      log('Unmute blocked: mics are locked by host');
+      return;
+    }
     const nextMute = !isMuted;
     
     // Toggle track status
@@ -447,7 +475,37 @@ export const useVoiceRoom = (pin: string, name: string) => {
     }
 
     setIsMuted(nextMute);
-  }, [pin, isMuted]);
+  }, [pin, isMuted, areMicsLocked]);
+
+  // Force-mute: triggered by host's "Mute All Mics" action
+  const forceMute = useCallback(() => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = false;
+      });
+    }
+    socketService.sendVoiceMute(pin);
+    setIsMuted(true);
+    log('Force-muted by host');
+  }, [pin]);
+
+  // Register force-mute listener when connected
+  useEffect(() => {
+    if (!isConnected) return;
+    socketService.onVoiceForceMute(forceMute);
+  }, [isConnected, forceMute]);
+
+  // Listen for host mic-lock / mic-unlock events (for all room members)
+  useEffect(() => {
+    socketService.onVoiceMicsLocked(() => {
+      setAreMicsLocked(true);
+      log('Mics locked by host');
+    });
+    socketService.onVoiceMicsUnlocked(() => {
+      setAreMicsLocked(false);
+      log('Mics unlocked by host');
+    });
+  }, []);
 
   // Automatic Reconnection Handling
   useEffect(() => {
@@ -548,6 +606,7 @@ export const useVoiceRoom = (pin: string, name: string) => {
     isConnected,
     isConnecting,
     isMuted,
+    areMicsLocked,
     voiceUsers,
     connectionQuality,
     errorMessage,
@@ -555,5 +614,197 @@ export const useVoiceRoom = (pin: string, name: string) => {
     joinVoiceRoom,
     leaveVoiceRoom,
     toggleMute
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useVoiceListener
+// Passive, mic-free hook for room members who haven't joined voice.
+// Automatically receives and plays audio from all active speakers —
+// similar to how Google Meet broadcasts to everyone in the meeting.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const useVoiceListener = (pin: string) => {
+  // Active speakers in this room's voice channel (from server broadcasts)
+  const [activeSpeakers, setActiveSpeakers] = useState<VoiceParticipant[]>([]);
+  // Remote audio streams keyed by speaker socketId
+  const [listenerStreams, setListenerStreams] = useState<Map<string, MediaStream>>(new Map());
+  // Whether the user has locally muted room audio
+  const [isRoomMuted, setIsRoomMuted] = useState(false);
+
+  const peerConnsRef       = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const iceQueuesRef       = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const audioAnalysersRef  = useRef<Map<string, () => void>>(new Map());
+  const connectedSpeakers  = useRef<Set<string>>(new Set());
+
+  // ICE servers (fetched once)
+  const iceServersRef = useRef<RTCIceServer[]>([{ urls: 'stun:stun.l.google.com:19302' }]);
+
+  // ── Helper: create a receive-only RTCPeerConnection ──────────────────────
+  const createListenerPC = useCallback((speakerSocketId: string): RTCPeerConnection | null => {
+    if (peerConnsRef.current.has(speakerSocketId)) {
+      return peerConnsRef.current.get(speakerSocketId)!;
+    }
+    try {
+      const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
+      peerConnsRef.current.set(speakerSocketId, pc);
+
+      // Receive-only transceivers (no local mic tracks added)
+      pc.addTransceiver('audio', { direction: 'recvonly' });
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socketService.sendVoiceIceCandidate(pin, speakerSocketId, event.candidate);
+        }
+      };
+
+      pc.ontrack = (event) => {
+        let stream = event.streams[0];
+        if (!stream && event.track) {
+          stream = new MediaStream([event.track]);
+        }
+        if (stream) {
+          setListenerStreams((prev) => {
+            const next = new Map(prev);
+            next.set(speakerSocketId, stream);
+            return next;
+          });
+
+          // Speaking indicator via audio analysis
+          const stopAnalyser = createAudioAnalyser(stream, (isSpeaking) => {
+            setActiveSpeakers((prev) =>
+              prev.map((u) => u.socketId === speakerSocketId ? { ...u, isSpeaking } : u)
+            );
+          });
+          audioAnalysersRef.current.set(speakerSocketId, stopAnalyser);
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+          cleanupListenerPeer(speakerSocketId);
+        }
+      };
+
+      return pc;
+    } catch (e) {
+      log('[Listener] Failed to create RTCPeerConnection:', e);
+      return null;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
+  // ── Helper: clean up a single peer ───────────────────────────────────────
+  const cleanupListenerPeer = useCallback((speakerSocketId: string) => {
+    audioAnalysersRef.current.get(speakerSocketId)?.();
+    audioAnalysersRef.current.delete(speakerSocketId);
+
+    const pc = peerConnsRef.current.get(speakerSocketId);
+    if (pc) { try { pc.close(); } catch (_) {} }
+    peerConnsRef.current.delete(speakerSocketId);
+    iceQueuesRef.current.delete(speakerSocketId);
+    connectedSpeakers.current.delete(speakerSocketId);
+
+    setListenerStreams((prev) => {
+      const next = new Map(prev);
+      next.delete(speakerSocketId);
+      return next;
+    });
+  }, []);
+
+  // ── Request audio from a speaker ─────────────────────────────────────────
+  const requestAudioFrom = useCallback((speakerSocketId: string) => {
+    if (connectedSpeakers.current.has(speakerSocketId)) return;
+    connectedSpeakers.current.add(speakerSocketId);
+    log(`[Listener] Requesting audio from speaker ${speakerSocketId}`);
+    socketService.sendVoiceListenRequest(pin, speakerSocketId);
+  }, [pin]);
+
+  // ── Main effect: subscribe to voice state + WebRTC signaling ─────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // 1. Listen to room-wide voice state updates (already broadcast to all room members)
+    socketService.onVoiceRoomStateUpdated((speakers) => {
+      setActiveSpeakers(speakers);
+
+      // Request audio from any speaker we haven't connected to yet
+      speakers.forEach((speaker) => {
+        if (!connectedSpeakers.current.has(speaker.socketId)) {
+          requestAudioFrom(speaker.socketId);
+        }
+      });
+
+      // Clean up peers whose speaker has left
+      const activeSpeakerIds = new Set(speakers.map((s) => s.socketId));
+      connectedSpeakers.current.forEach((id) => {
+        if (!activeSpeakerIds.has(id)) {
+          cleanupListenerPeer(id);
+        }
+      });
+    });
+
+    // 2. Handle incoming offer from a speaker (response to our listen-request)
+    socketService.onVoiceOffer(async ({ initiatorSocketId, offer }) => {
+      // Only handle if we are NOT in voice ourselves (this hook is for non-joined listeners)
+      log(`[Listener] Got offer from speaker ${initiatorSocketId}`);
+      const pc = createListenerPC(initiatorSocketId);
+      if (!pc) return;
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+        // Flush queued ICE candidates
+        const queue = iceQueuesRef.current.get(initiatorSocketId) || [];
+        for (const c of queue) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+        }
+        iceQueuesRef.current.delete(initiatorSocketId);
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socketService.sendVoiceAnswer(pin, initiatorSocketId, answer);
+      } catch (err) {
+        log(`[Listener] Error handling offer from ${initiatorSocketId}:`, err);
+      }
+    });
+
+    // 3. Handle ICE candidates from speakers
+    socketService.onVoiceIceCandidate(async ({ senderSocketId, candidate }) => {
+      const pc = peerConnsRef.current.get(senderSocketId);
+      if (pc && pc.remoteDescription) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
+      } else {
+        if (!iceQueuesRef.current.has(senderSocketId)) {
+          iceQueuesRef.current.set(senderSocketId, []);
+        }
+        iceQueuesRef.current.get(senderSocketId)!.push(candidate);
+      }
+    });
+
+    // 4. Fetch ICE config once
+    socketService.getVoiceConfig((config) => {
+      if (config.iceServers?.length) iceServersRef.current = config.iceServers;
+    });
+
+    return () => {
+      // Full cleanup on unmount
+      peerConnsRef.current.forEach((pc) => { try { pc.close(); } catch (_) {} });
+      peerConnsRef.current.clear();
+      audioAnalysersRef.current.forEach((stop) => stop());
+      audioAnalysersRef.current.clear();
+      iceQueuesRef.current.clear();
+      connectedSpeakers.current.clear();
+      setListenerStreams(new Map());
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
+  const toggleRoomMute = useCallback(() => setIsRoomMuted((prev) => !prev), []);
+
+  return {
+    activeSpeakers,     // List of VoiceParticipant currently in voice
+    listenerStreams,    // Map<speakerSocketId, MediaStream> for rendering audio elements
+    isRoomMuted,        // Whether this user has muted the room audio locally
+    toggleRoomMute,     // Toggle local mute
   };
 };

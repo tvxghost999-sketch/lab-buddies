@@ -115,6 +115,7 @@ mongoose.connect(mongoURI)
 
 // --- Voice Room State and Configuration ---
 const voiceRooms = new Map(); // roomPin -> Map<socketId, { name, isMuted }>
+const voiceMicLocks = new Map(); // roomPin -> boolean (true = mics locked by host)
 const VOICE_PARTICIPANT_LIMIT = parseInt(process.env.VOICE_PARTICIPANT_LIMIT, 10) || 20;
 
 // Configurable STUN/TURN servers
@@ -163,6 +164,7 @@ const RoomSchema = new mongoose.Schema({
   status: { type: String, default: 'Active' },
   password: { type: String },
   storageLimit: { type: Number, default: 25 * 1024 * 1024 },
+  voiceMicsLocked: { type: Boolean, default: false },
 });
 const Room = mongoose.model('Room', RoomSchema);
 
@@ -227,6 +229,9 @@ const PlatformStatSchema = new mongoose.Schema({
   totalDownloadsServed: { type: Number, default: 0 },
   totalStorageBytesProcessed: { type: Number, default: 0 },
   peakConcurrentUsers: { type: Number, default: 0 },
+  totalRewardAdsWatched: { type: Number, default: 0 },
+  totalBannerImpressions: { type: Number, default: 0 },
+  totalBannerClicks: { type: Number, default: 0 },
 });
 const PlatformStat = mongoose.model('PlatformStat', PlatformStatSchema);
 
@@ -264,6 +269,77 @@ const logAdminAction = async (adminEmail, action, target, details) => {
     console.error('[AUDIT ERROR]:', err);
   }
 };
+
+// Run database backfill to populate missing fileSizeBytes for historic files
+const runDatabaseBackfill = async () => {
+  try {
+    const itemsToMigrate = await FeedItem.find({ type: 'file', $or: [{ fileSizeBytes: { $exists: false } }, { fileSizeBytes: null }, { fileSizeBytes: 0 }] });
+    if (itemsToMigrate.length > 0) {
+      console.log(`[Migration] Found ${itemsToMigrate.length} file feed items with missing/zero fileSizeBytes. Backfilling...`);
+      let migratedCount = 0;
+      for (const item of itemsToMigrate) {
+        if (item.fileSize) {
+          const match = item.fileSize.match(/([\d.]+)\s*(KB|MB|GB|Bytes|B)/i);
+          if (match) {
+            const val = parseFloat(match[1]);
+            const unit = match[2].toUpperCase();
+            let bytes = 0;
+            if (unit.startsWith('K')) bytes = Math.round(val * 1024);
+            else if (unit.startsWith('M')) bytes = Math.round(val * 1024 * 1024);
+            else if (unit.startsWith('G')) bytes = Math.round(val * 1024 * 1024 * 1024);
+            else bytes = Math.round(val);
+            
+            item.fileSizeBytes = bytes;
+            await item.save();
+            migratedCount++;
+          }
+        }
+      }
+      console.log(`[Migration] Backfilled fileSizeBytes for ${migratedCount} files successfully.`);
+    }
+
+    // Sync PlatformStat global metrics baseline
+    const fileItems = await FeedItem.find({ type: 'file' });
+    const currentStorageBytes = fileItems.reduce((acc, f) => acc + (f.fileSizeBytes || 0), 0);
+    const currentDownloads = fileItems.reduce((acc, f) => acc + (f.totalDownloads || 0), 0);
+    const totalFiles = fileItems.length;
+
+    let stats = await PlatformStat.findOne({ key: 'global' });
+    if (!stats) {
+      const activeRoomsCount = await Room.countDocuments({ status: 'Active' });
+      await PlatformStat.create({
+        key: 'global',
+        totalRoomsCreated: activeRoomsCount,
+        totalFilesUploaded: totalFiles,
+        totalDownloadsServed: currentDownloads,
+        totalStorageBytesProcessed: currentStorageBytes,
+      });
+      console.log(`[Migration] Initialized global PlatformStat baseline.`);
+    } else {
+      let updated = false;
+      if (!stats.totalStorageBytesProcessed || stats.totalStorageBytesProcessed < currentStorageBytes) {
+        stats.totalStorageBytesProcessed = currentStorageBytes;
+        updated = true;
+      }
+      if (!stats.totalFilesUploaded || stats.totalFilesUploaded < totalFiles) {
+        stats.totalFilesUploaded = totalFiles;
+        updated = true;
+      }
+      if (!stats.totalDownloadsServed || stats.totalDownloadsServed < currentDownloads) {
+        stats.totalDownloadsServed = currentDownloads;
+        updated = true;
+      }
+      if (updated) {
+        await stats.save();
+        console.log(`[Migration] Synced global PlatformStat lifetime metrics to active DB baselines.`);
+      }
+    }
+  } catch (migErr) {
+    console.error('[Migration] Failed to run database migration:', migErr);
+  }
+};
+// Run the backfill on startup after a safe delay
+setTimeout(runDatabaseBackfill, 5000);
 
 // Helper to increment platform lifetime statistics
 const incrementPlatformStat = async (field, amount = 1) => {
@@ -760,6 +836,15 @@ app.get('/api/room/:pin', async (req, res) => {
       return res.status(404).json({ error: 'Room not found.' });
     }
 
+    const now = Date.now();
+    const duration = parseTimerDuration(room.autoDeleteTimer);
+    const createdAtMs = room.createdAtMs || new Date(room.createdAt).getTime() || now;
+    if (now - createdAtMs >= duration) {
+      console.log(`[ON-DEMAND PURGE] Room #${pin} expired on GET. Purging...`);
+      await cleanupRoomData(pin);
+      return res.status(404).json({ error: 'Room has expired and self-destructed.' });
+    }
+
     const feed = await FeedItem.find({ roomPin: pin }).sort({ _id: 1 });
     const notes = await Note.find({ roomPin: pin });
     const members = await Member.find({ roomPin: pin, isOnline: true });
@@ -778,12 +863,12 @@ app.get('/api/room/:pin', async (req, res) => {
   }
 });
 
-// Upload Rate Limiting (5 uploads / 60 seconds per IP)
+// Upload Rate Limiting (30 uploads / 60 seconds per IP)
 const uploadRateLimitMap = new Map();
 const checkUploadRateLimit = (ip) => {
   const now = Date.now();
   const windowMs = 60 * 1000;
-  const maxUploads = 5;
+  const maxUploads = 30;
 
   let timestamps = uploadRateLimitMap.get(ip) || [];
   timestamps = timestamps.filter((t) => now - t < windowMs);
@@ -797,6 +882,28 @@ const checkUploadRateLimit = (ip) => {
   uploadRateLimitMap.set(ip, timestamps);
   return true;
 };
+
+// Public API to track banner ad impressions
+app.post('/api/track-banner-impression', async (req, res) => {
+  try {
+    await incrementPlatformStat('totalBannerImpressions', 1);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('[API] Error tracking banner impression:', err);
+    return res.status(500).json({ error: 'Failed to track impression' });
+  }
+});
+
+// Public API to track banner ad clicks
+app.post('/api/track-banner-click', async (req, res) => {
+  try {
+    await incrementPlatformStat('totalBannerClicks', 1);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('[API] Error tracking banner click:', err);
+    return res.status(500).json({ error: 'Failed to track click' });
+  }
+});
 
 // File Upload endpoint
 app.post('/api/upload', upload.single('file'), async (req, res) => {
@@ -888,6 +995,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
           finalSizeStr = `${(finalSizeBytes / 1024).toFixed(2)} KB`;
         }
 
+        await incrementPlatformStat('totalFilesUploaded', 1);
+        await incrementPlatformStat('totalStorageBytesProcessed', finalSizeBytes);
+
         return res.status(200).json({
           fileName: req.file.originalname,
           fileSize: finalSizeStr,
@@ -902,6 +1012,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         const hostHeader = req.get('host') || '';
         const hostBase = hostHeader.includes('render.com') ? 'https://lab-buddies-7r70.onrender.com' : `${req.protocol}://${hostHeader}`;
         const fileUrl = `${hostBase}/uploads/${req.file.filename}`;
+        
+        await incrementPlatformStat('totalFilesUploaded', 1);
+        await incrementPlatformStat('totalStorageBytesProcessed', req.file.size);
+
         return res.status(200).json({
           fileName: req.file.originalname,
           fileSize: fileSizeStr,
@@ -916,6 +1030,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const hostHeader = req.get('host') || '';
     const hostBase = hostHeader.includes('render.com') ? 'https://lab-buddies-7r70.onrender.com' : `${req.protocol}://${hostHeader}`;
     const fileUrl = `${hostBase}/uploads/${req.file.filename}`;
+    
+    await incrementPlatformStat('totalFilesUploaded', 1);
+    await incrementPlatformStat('totalStorageBytesProcessed', req.file.size);
+
     return res.status(200).json({
       fileName: req.file.originalname,
       fileSize: fileSizeStr,
@@ -1019,10 +1137,30 @@ app.get('/api/admin/metrics', adminAuthMiddleware, async (req, res) => {
       memoryUsageMB: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1),
       lifetime: {
         totalRoomsCreated: (stats.totalRoomsCreated || 0) + totalArchives,
-        totalFilesUploaded: stats.totalFilesUploaded || totalFiles,
-        totalDownloadsServed: stats.totalDownloadsServed || totalDownloads,
-        totalStorageMBProcessed: ((stats.totalStorageBytesProcessed || totalStorageBytes) / (1024 * 1024)).toFixed(2),
+        totalFilesUploaded: stats.totalFilesUploaded || 0,
+        totalDownloadsServed: stats.totalDownloadsServed || 0,
+        totalStorageMBProcessed: ((stats.totalStorageBytesProcessed || 0) / (1024 * 1024)).toFixed(2),
         totalArchivedSessions: totalArchives,
+        totalRewardAdsWatched: stats.totalRewardAdsWatched || 0,
+        totalBannerImpressions: stats.totalBannerImpressions || 0,
+        totalBannerClicks: stats.totalBannerClicks || 0,
+        ctrPercentage: (() => {
+          const totalImpressions = (stats.totalBannerImpressions || 0) + (stats.totalRewardAdsWatched || 0);
+          return totalImpressions > 0 ? ((stats.totalBannerClicks || 0) / totalImpressions * 100).toFixed(2) : '0.00';
+        })(),
+        pageRPM: (() => {
+          const totalImpressions = (stats.totalBannerImpressions || 0) + (stats.totalRewardAdsWatched || 0);
+          const totalEarnings = (stats.totalRewardAdsWatched || 0) * 0.10 + 
+                                (stats.totalBannerImpressions || 0) * 0.005 + 
+                                (stats.totalBannerClicks || 0) * 0.50;
+          return totalImpressions > 0 ? ((totalEarnings / totalImpressions) * 1000).toFixed(2) : '0.00';
+        })(),
+        estimatedRevenueRs: (() => {
+          const totalEarnings = (stats.totalRewardAdsWatched || 0) * 0.10 + 
+                                (stats.totalBannerImpressions || 0) * 0.005 + 
+                                (stats.totalBannerClicks || 0) * 0.50;
+          return totalEarnings.toFixed(3);
+        })(),
       }
     });
   } catch (err) {
@@ -1325,10 +1463,24 @@ io.on('connection', (socket) => {
 
       // Determine role: creator is host, everyone else is member
       const room = await Room.findOne({ pin });
+      if (!room) {
+        socket.emit('room-expired');
+        return;
+      }
+
+      const now = Date.now();
+      const duration = parseTimerDuration(room.autoDeleteTimer);
+      const createdAtMs = room.createdAtMs || new Date(room.createdAt).getTime() || now;
+      if (now - createdAtMs >= duration) {
+        console.log(`[ON-DEMAND PURGE] Room #${pin} expired on join. Purging...`);
+        await cleanupRoomData(pin);
+        socket.emit('room-expired');
+        return;
+      }
+
       let assignedRole = 'member';
       let normalizedName = name;
-      if (room) {
-        const creatorName = room.originalCreator || room.createdBy;
+      const creatorName = room.originalCreator || room.createdBy;
         if (creatorName && creatorName.toLowerCase() === name.toLowerCase()) {
           assignedRole = 'host';
           normalizedName = creatorName; // Enforce original case
@@ -1345,7 +1497,6 @@ io.on('connection', (socket) => {
           assignedRole = 'host';
           normalizedName = room.createdBy;
         }
-      }
 
       // Save member connection (case-insensitive lookup to prevent duplicate records)
       let member = await Member.findOne({ roomPin: pin, name: { $regex: new RegExp(`^${normalizedName}$`, 'i') } });
@@ -1398,6 +1549,16 @@ io.on('connection', (socket) => {
       const room = await Room.findOne({ pin });
       if (!room) {
         socket.emit('knock-result', { status: 'error', message: 'Room PIN not found.' });
+        return;
+      }
+
+      const now = Date.now();
+      const duration = parseTimerDuration(room.autoDeleteTimer);
+      const createdAtMs = room.createdAtMs || new Date(room.createdAt).getTime() || now;
+      if (now - createdAtMs >= duration) {
+        console.log(`[ON-DEMAND PURGE] Room #${pin} expired on knock. Purging...`);
+        await cleanupRoomData(pin);
+        socket.emit('knock-result', { status: 'error', message: 'This room has expired and self-destructed.' });
         return;
       }
 
@@ -1505,15 +1666,14 @@ io.on('connection', (socket) => {
   // Share message / code / file event
   socket.on('send-feed-item', async ({ pin, item }) => {
     try {
-      const now = Date.now();
-      const lastTime = rateLimitMap.get(socket.id);
-      const cooldown = 1500; // 1.5 seconds cooldown
-
-      if (lastTime && (now - lastTime < cooldown)) {
+      // Bypass 1.5s cooldown for files since they are already rate-limited via HTTP upload checks
+      if (item.type !== 'file' && lastTime && (now - lastTime < cooldown)) {
         socket.emit('rate-limited', { message: 'You are sending messages too fast! Please wait a moment.' });
         return;
       }
-      rateLimitMap.set(socket.id, now);
+      if (item.type !== 'file') {
+        rateLimitMap.set(socket.id, now);
+      }
 
       const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       
@@ -1772,6 +1932,42 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Host Controls: Update General Room Settings
+  socket.on('update-room-settings', async ({ pin, settings }) => {
+    try {
+      const host = await Member.findOne({ socketId: socket.id, roomPin: pin, role: 'host' });
+      if (!host) {
+        socket.emit('rate-limited', { message: 'Action rejected: only the host can update room settings.' });
+        return;
+      }
+      const room = await Room.findOne({ pin });
+      if (room) {
+        if (settings.name !== undefined) room.name = settings.name;
+        if (settings.maxMembers !== undefined) room.maxMembers = settings.maxMembers;
+        if (settings.autoDeleteTimer !== undefined) room.autoDeleteTimer = settings.autoDeleteTimer;
+        if (settings.roomVisibility !== undefined) room.roomVisibility = settings.roomVisibility;
+        await room.save();
+
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const newActivity = new Activity({
+          roomPin: pin,
+          type: 'setting_change',
+          description: `Host updated room configuration`,
+          timestamp,
+          user: 'Host'
+        });
+        await newActivity.save();
+
+        const activeActivities = await Activity.find({ roomPin: pin }).sort({ _id: -1 }).limit(30);
+
+        io.to(pin).emit('room-settings-updated', room);
+        io.to(pin).emit('activities-updated', activeActivities);
+      }
+    } catch (err) {
+      console.error('[Socket update-room-settings error]:', err);
+    }
+  });
+
   // Host Controls: Mute Member
   socket.on('toggle-mute-member', async ({ pin, memberId }) => {
     try {
@@ -1995,6 +2191,7 @@ io.on('connection', (socket) => {
       const newLimitMB = Math.min(100, currentLimitMB + 25);
       room.storageLimit = newLimitMB * 1024 * 1024;
       await room.save();
+      await incrementPlatformStat('totalRewardAdsWatched', 1);
 
       io.to(pin).emit('storage-limit-updated', {
         storageLimit: room.storageLimit,
@@ -2003,6 +2200,24 @@ io.on('connection', (socket) => {
       console.log(`[STORAGE] Room ${pin} unlocked +25 MB storage. New Limit: ${newLimitMB} MB.`);
     } catch (err) {
       console.error('[STORAGE] Error unlocking room storage:', err);
+    }
+  });
+
+  // Track Banner Ad Impression Analytics
+  socket.on('track-banner-impression', async () => {
+    try {
+      await incrementPlatformStat('totalBannerImpressions', 1);
+    } catch (err) {
+      console.error('[STATS] Error tracking banner impression:', err);
+    }
+  });
+
+  // Track Banner Ad Click Analytics
+  socket.on('track-banner-click', async () => {
+    try {
+      await incrementPlatformStat('totalBannerClicks', 1);
+    } catch (err) {
+      console.error('[STATS] Error tracking banner click:', err);
     }
   });
 
@@ -2018,6 +2233,9 @@ io.on('connection', (socket) => {
           item.uniqueDownloaders.push(downloaderId);
         }
         await item.save();
+
+        await incrementPlatformStat('totalDownloadsServed', 1);
+        await incrementPlatformStat('totalStorageBytesProcessed', item.fileSizeBytes || 0);
 
         io.to(pin).emit('file-stats-updated', {
           fileId: item._id.toString(),
@@ -2088,6 +2306,12 @@ io.on('connection', (socket) => {
 
       // 2. Validate max participant limit
       const room = await Room.findOne({ pin });
+      if (room && room.voiceMicsLocked) {
+        voiceMicLocks.set(pin, true);
+        // Notify this specific user that mics are locked in this room
+        socket.emit('voice:mics-locked');
+      }
+
       const limit = room ? (room.maxMembers || VOICE_PARTICIPANT_LIMIT) : VOICE_PARTICIPANT_LIMIT;
       if (voiceRoom.size >= limit) {
         console.warn(`[Voice] Join rejected: Room ${pin} voice channel is full (${voiceRoom.size}/${limit})`);
@@ -2169,42 +2393,70 @@ io.on('connection', (socket) => {
     }
   });
 
-  // WebRTC offer signaling (only allow if both sender & receiver are in same voice room)
+  // WebRTC offer signaling
+  // Security: sender OR receiver must be an active voice speaker (allows listener↔speaker)
   socket.on('voice:offer', ({ pin, targetSocketId, offer }) => {
     const voiceRoom = voiceRooms.get(pin);
-    if (voiceRoom && voiceRoom.has(socket.id) && voiceRoom.has(targetSocketId)) {
+    const senderInVoice   = voiceRoom && voiceRoom.has(socket.id);
+    const receiverInVoice = voiceRoom && voiceRoom.has(targetSocketId);
+    if (senderInVoice || receiverInVoice) {
       socket.to(targetSocketId).emit('voice:offer', {
         initiatorSocketId: socket.id,
         offer
       });
     } else {
-      console.warn(`[Voice Security] Blocked offer: Sockets not in same voice room ${pin}`);
+      console.warn(`[Voice Security] Blocked offer: Neither socket is an active speaker in room ${pin}`);
     }
   });
 
-  // WebRTC answer signaling (only allow if both sender & receiver are in same voice room)
+  // WebRTC answer signaling
+  // Security: sender OR receiver must be an active voice speaker
   socket.on('voice:answer', ({ pin, targetSocketId, answer }) => {
     const voiceRoom = voiceRooms.get(pin);
-    if (voiceRoom && voiceRoom.has(socket.id) && voiceRoom.has(targetSocketId)) {
+    const senderInVoice   = voiceRoom && voiceRoom.has(socket.id);
+    const receiverInVoice = voiceRoom && voiceRoom.has(targetSocketId);
+    if (senderInVoice || receiverInVoice) {
       socket.to(targetSocketId).emit('voice:answer', {
         responderSocketId: socket.id,
         answer
       });
     } else {
-      console.warn(`[Voice Security] Blocked answer: Sockets not in same voice room ${pin}`);
+      console.warn(`[Voice Security] Blocked answer: Neither socket is an active speaker in room ${pin}`);
     }
   });
 
-  // WebRTC ICE Candidate signaling (only allow if both sender & receiver are in same voice room)
+  // WebRTC ICE Candidate signaling
+  // Security: sender OR receiver must be an active voice speaker
   socket.on('voice:ice-candidate', ({ pin, targetSocketId, candidate }) => {
     const voiceRoom = voiceRooms.get(pin);
-    if (voiceRoom && voiceRoom.has(socket.id) && voiceRoom.has(targetSocketId)) {
+    const senderInVoice   = voiceRoom && voiceRoom.has(socket.id);
+    const receiverInVoice = voiceRoom && voiceRoom.has(targetSocketId);
+    if (senderInVoice || receiverInVoice) {
       socket.to(targetSocketId).emit('voice:ice-candidate', {
         senderSocketId: socket.id,
         candidate
       });
     } else {
-      console.warn(`[Voice Security] Blocked ice-candidate: Sockets not in same voice room ${pin}`);
+      console.warn(`[Voice Security] Blocked ice-candidate: Neither socket is an active speaker in room ${pin}`);
+    }
+  });
+
+  // Passive listen request: a room member (not in voice) wants to receive audio from a speaker.
+  // The speaker receives this and creates an offer back to the listener.
+  // Security: targetSpeakerSocketId must be an active voice participant.
+  socket.on('voice:listen-request', ({ pin, targetSpeakerSocketId }) => {
+    try {
+      const voiceRoom = voiceRooms.get(pin);
+      if (voiceRoom && voiceRoom.has(targetSpeakerSocketId)) {
+        // Forward request to the speaker so they can initiate a WebRTC offer to this listener
+        socket.to(targetSpeakerSocketId).emit('voice:listen-request', {
+          listenerSocketId: socket.id
+        });
+      } else {
+        console.warn(`[Voice] listen-request ignored: target ${targetSpeakerSocketId} is not an active speaker`);
+      }
+    } catch (error) {
+      console.error('[Voice] Error handling listen-request:', error);
     }
   });
 
@@ -2232,6 +2484,13 @@ io.on('connection', (socket) => {
   // Microphone unmute
   socket.on('voice:unmute', ({ pin }) => {
     try {
+      // Reject if host has locked all mics
+      if (voiceMicLocks.get(pin) === true) {
+        console.log(`[Voice] Unmute blocked: mics are locked by host in room ${pin}`);
+        // Re-enforce mute on this client
+        socket.emit('voice:force-mute');
+        return;
+      }
       const voiceRoom = voiceRooms.get(pin);
       if (voiceRoom && voiceRoom.has(socket.id)) {
         const user = voiceRoom.get(socket.id);
@@ -2247,6 +2506,93 @@ io.on('connection', (socket) => {
       }
     } catch (error) {
       console.error('[Voice] Error unmuting mic:', error);
+    }
+  });
+
+  // Host: mute all active voice participants at once
+  socket.on('voice:mute-all', async ({ pin }) => {
+    try {
+      const member = await Member.findOne({ socketId: socket.id, roomPin: pin });
+      if (!member || member.role !== 'host') {
+        console.warn(`[Voice Security] Mute-all rejected: ${socket.id} is not host of room ${pin}`);
+        return;
+      }
+
+      const voiceRoom = voiceRooms.get(pin);
+      if (!voiceRoom || voiceRoom.size === 0) return;
+
+      voiceRoom.forEach((user) => { user.isMuted = true; });
+      console.log(`[Voice] Host muted all ${voiceRoom.size} participant(s) in room ${pin}`);
+
+      io.to(`voice:${pin}`).emit('voice:force-mute');
+      io.to(pin).emit('voice:room-state-updated', Array.from(voiceRoom.entries()).map(([id, val]) => ({
+        socketId: id, name: val.name, isMuted: val.isMuted
+      })));
+    } catch (error) {
+      console.error('[Voice] Error in mute-all:', error);
+    }
+  });
+
+  // Host: lock all mics — members cannot unmute themselves until host unlocks
+  socket.on('voice:lock-mics', async ({ pin }) => {
+    try {
+      const member = await Member.findOne({ socketId: socket.id, roomPin: pin });
+      if (!member || member.role !== 'host') {
+        console.warn(`[Voice Security] Lock-mics rejected: ${socket.id} is not host of room ${pin}`);
+        return;
+      }
+
+      // 1. First mute everyone immediately
+      const voiceRoom = voiceRooms.get(pin);
+      if (voiceRoom) {
+        voiceRoom.forEach((user) => { user.isMuted = true; });
+        io.to(`voice:${pin}`).emit('voice:force-mute');
+        io.to(pin).emit('voice:room-state-updated', Array.from(voiceRoom.entries()).map(([id, val]) => ({
+          socketId: id, name: val.name, isMuted: val.isMuted
+        })));
+      }
+
+      // 2. Then set lock status and persist to DB
+      voiceMicLocks.set(pin, true);
+      console.log(`[Voice] Host locked all mics in room ${pin}`);
+
+      const room = await Room.findOne({ pin });
+      if (room) {
+        room.voiceMicsLocked = true;
+        await room.save();
+        io.to(pin).emit('room-settings-updated', room);
+      }
+
+      // Notify all room members that mics are now locked
+      io.to(pin).emit('voice:mics-locked');
+    } catch (error) {
+      console.error('[Voice] Error in lock-mics:', error);
+    }
+  });
+
+  // Host: unlock mics — members can unmute themselves again
+  socket.on('voice:unlock-mics', async ({ pin }) => {
+    try {
+      const member = await Member.findOne({ socketId: socket.id, roomPin: pin });
+      if (!member || member.role !== 'host') {
+        console.warn(`[Voice Security] Unlock-mics rejected: ${socket.id} is not host of room ${pin}`);
+        return;
+      }
+
+      voiceMicLocks.set(pin, false);
+      console.log(`[Voice] Host unlocked all mics in room ${pin}`);
+
+      const room = await Room.findOne({ pin });
+      if (room) {
+        room.voiceMicsLocked = false;
+        await room.save();
+        io.to(pin).emit('room-settings-updated', room);
+      }
+
+      // Notify all room members that mics are now unlocked
+      io.to(pin).emit('voice:mics-unlocked');
+    } catch (error) {
+      console.error('[Voice] Error in unlock-mics:', error);
     }
   });
 

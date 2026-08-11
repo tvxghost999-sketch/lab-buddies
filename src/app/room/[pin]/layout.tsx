@@ -8,7 +8,7 @@ import {
   Zap, Copy, LogOut, Menu, X, 
   MessageSquare, FolderOpen, Users, Activity, 
   Code, StickyNote, Settings, Search, Lock, 
-  VolumeX, Trash2, Ban, QrCode, Calendar, Sparkles
+  VolumeX, Trash2, Ban, QrCode, Calendar, Sparkles, MicOff
 } from 'lucide-react';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
@@ -17,7 +17,7 @@ import Card from '@/components/ui/card';
 import { Switch } from '@/components/ui/input';
 import AdInterstitial from '@/components/AdInterstitial';
 import Image from 'next/image';
-import VoiceRoomPanel from '@/components/voice/VoiceRoomPanel';
+
 
 
 export default function RoomLayout({ children }: { children: React.ReactNode }) {
@@ -39,10 +39,58 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   const addToast = useRoomStore((state) => state.addToast);
   const enterRoom = useRoomStore((state) => state.enterRoom);
   const showConfirm = useRoomStore((state) => state.showConfirm);
+  const loggedInUser = useRoomStore((state) => state.loggedInUser);
+  const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
 
   // Knocking requests waiting line
   const [knockingRequests, setKnockingRequests] = useState<{ name: string; socketId: string }[]>([]);
   const [isStorageAdOpen, setIsStorageAdOpen] = useState(false);
+
+  // --- Simulated Banner Ads ---
+  const [currentAdIndex, setCurrentAdIndex] = useState(0);
+  const [isAdRefreshing, setIsAdRefreshing] = useState(false);
+  const mockAds = [
+    {
+      title: "c'Balm",
+      desc: "When it comes to your skin, never settle. Skin, hair and body care formulations created with meticulous detail.",
+      cta: "Learn More",
+      image: "/ad_cbalm.jpg"
+    },
+    {
+      title: "Lab Buddies Premium",
+      desc: "Unlock dynamic +500 MB storage limits, host up to 50 active voice members, and enjoy zero ads.",
+      cta: "Upgrade Premium",
+      image: "/ad_labbuddies.jpg"
+    },
+    {
+      title: "Modi Studio",
+      desc: "Design and build premium next-generation digital products, PWAs, and custom beautiful interactions.",
+      cta: "View Portfolio",
+      image: "/ad_modistudio.jpg"
+    }
+  ];
+
+  useEffect(() => {
+    if (!activeRoom) return;
+
+    // Track initial banner impression
+    socketService.emitTrackBannerImpression();
+
+    const bannerTimer = setInterval(() => {
+      // Trigger refresh animation
+      setIsAdRefreshing(true);
+      setTimeout(() => {
+        setIsAdRefreshing(false);
+      }, 600);
+
+      // Track impression on banner refresh
+      socketService.emitTrackBannerImpression();
+      // Rotate banner ad
+      setCurrentAdIndex((prev) => (prev + 1) % mockAds.length);
+    }, 60000); // 1 minute refresh
+
+    return () => clearInterval(bannerTimer);
+  }, [activeRoom]);
 
   // Password Prompt modal states
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
@@ -556,10 +604,6 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
           </button>
         </nav>
 
-        {/* Collapsible Voice Room Panel */}
-        {currentUser && (
-          <VoiceRoomPanel pin={pin} currentUser={{ name: currentUser.name, role: currentUser.role }} />
-        )}
 
 
         {/* Host Controls Panel */}
@@ -580,6 +624,18 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
                   checked={activeRoom?.isMuted || false}
                   onCheckedChange={handleToggleMute}
                 />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 text-xs justify-center hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-all"
+                  onClick={() => {
+                    socketService.emitVoiceMuteAll(pin);
+                    addToast('🎙️ All voice mics have been muted.', 'info');
+                  }}
+                >
+                  <MicOff className="w-3.5 h-3.5" />
+                  Mute All Mics
+                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -616,7 +672,11 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
               {limitMB < 100 && (
                 <button
                   type="button"
-                  onClick={() => setIsStorageAdOpen(true)}
+                  onClick={() => {
+                    // Broadcast to all connected devices — they all watch the ad together
+                    socketService.emitTriggerStorageAdRequest(pin);
+                    addToast('📢 Syncing ad to all connected devices...', 'info');
+                  }}
                   className="mt-1 w-full py-1.5 px-2 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/25 text-[#FFD600] hover:bg-[#FFD600]/20 hover:border-[#FFD600]/40 text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95"
                 >
                   <Sparkles className="w-3.5 h-3.5 flex-shrink-0 animate-pulse" />
@@ -642,7 +702,11 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
               {limitMB < 100 && (
                 <button
                   type="button"
-                  onClick={() => setIsStorageAdOpen(true)}
+                  onClick={() => {
+                    // Members can also trigger the ad broadcast
+                    socketService.emitTriggerStorageAdRequest(pin);
+                    addToast('📢 Requesting storage expansion for the room...', 'info');
+                  }}
                   className="mt-1 w-full py-1.5 px-2 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/25 text-[#FFD600] hover:bg-[#FFD600]/20 hover:border-[#FFD600]/40 text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95"
                 >
                   <Sparkles className="w-3.5 h-3.5 flex-shrink-0 animate-pulse" />
@@ -670,6 +734,69 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
           hrs mins secs
         </span>
       </div>
+
+      {!isPremium && (
+        /* Banner Ad Section */
+        <div className="mt-5 border border-black/10 bg-white rounded-xl p-3 flex flex-col gap-2.5 transition-all duration-500 relative overflow-hidden select-none text-black">
+          {/* AdChoices Badge */}
+          <div className="absolute top-2 right-2.5 flex items-center gap-1 z-10">
+            <svg className="w-3.5 h-3.5 text-blue-500 fill-current" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
+            <svg 
+              onClick={() => addToast('Simulated Close Ad request', 'info')}
+              className="w-3.5 h-3.5 text-black/30 hover:text-black/60 cursor-pointer" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </div>
+
+          {/* Ad Image (Top of Ad block) */}
+          <div className="w-full h-24 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-black/5">
+            <img 
+              src={mockAds[currentAdIndex].image} 
+              alt={mockAds[currentAdIndex].title} 
+              className="w-full h-full object-cover" 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 text-left mt-0.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-gray-900 leading-tight tracking-tight">
+                {mockAds[currentAdIndex].title}
+              </span>
+              <span className="text-[8px] text-black/40 bg-black/5 px-1 py-0.2 rounded border border-black/5">
+                Sponsored
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-600 leading-normal line-clamp-2">
+              {mockAds[currentAdIndex].desc}
+            </p>
+          </div>
+
+          <button 
+            onClick={() => {
+              socketService.emitTrackBannerClick();
+              addToast(`Simulated Ad Click: Redirecting to sponsor...`, 'info');
+            }}
+            className="w-full py-1.5 px-2 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] text-white text-[10px] font-bold text-center transition-all cursor-pointer border-0 shadow-sm active:scale-95"
+          >
+            {mockAds[currentAdIndex].cta}
+          </button>
+
+          {/* Simulated Refresh Overlay (Brief transition spinner) */}
+          {isAdRefreshing && (
+            <div className="absolute inset-0 bg-white/90 backdrop-blur-[1px] flex items-center justify-center z-20 animate-in fade-in duration-200">
+              <div className="w-6 h-6 rounded-full border-3 border-[#3B82F6] border-t-transparent animate-spin" />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Powered by Modi Studio */}
       <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-white/[0.06]">
@@ -724,6 +851,59 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
             <span>{members.length} Members Online</span>
           </div>
         </div>
+
+        {/* Desktop Header Ad (Simulated AdSense) */}
+        {!isPremium && (
+          <div className="hidden xl:flex items-center justify-center flex-1 max-w-[460px] h-[46px] border border-white/[0.08] bg-[#0f0f10] rounded-xl overflow-hidden px-3 relative select-none mx-4">
+            {/* AdChoices Badge */}
+            <div className="absolute top-1 right-2 flex items-center gap-0.5">
+              <svg className="w-2.5 h-2.5 text-blue-500 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+              <svg 
+                onClick={() => addToast('Simulated Close Ad request', 'info')}
+                className="w-2.5 h-2.5 text-white/30 hover:text-white/60 cursor-pointer" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
+
+            {/* Ad Content */}
+            <div className="flex items-center gap-3 w-full pr-6 text-left">
+              <div className="w-9 h-9 rounded bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <img src={mockAds[currentAdIndex].image} alt="" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-white truncate">{mockAds[currentAdIndex].title}</span>
+                  <span className="text-[7.5px] uppercase font-semibold text-[#FFD600] bg-[#FFD600]/10 border border-[#FFD600]/25 px-1 py-0.1 rounded">Ad</span>
+                </div>
+                <span className="text-[9px] text-[#a1a1aa] truncate leading-tight">{mockAds[currentAdIndex].desc}</span>
+              </div>
+              <button 
+                onClick={() => {
+                  socketService.emitTrackBannerClick();
+                  addToast(`Simulated Ad Click: Redirecting to sponsor...`, 'info');
+                }}
+                className="py-1 px-3 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] text-white text-[9.5px] font-bold whitespace-nowrap active:scale-95 border-0 cursor-pointer flex-shrink-0"
+              >
+                {mockAds[currentAdIndex].cta}
+              </button>
+            </div>
+            
+            {/* Simulated Refresh Overlay */}
+            {isAdRefreshing && (
+              <div className="absolute inset-0 bg-[#0f0f10]/95 flex items-center justify-center z-20 animate-in fade-in duration-200">
+                <div className="w-4 h-4 rounded-full border-2 border-[#3B82F6] border-t-transparent animate-spin" />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Right side: Room Pin badge & Quick QR button */}
         <div className="pr-3 flex items-center gap-2">
@@ -833,15 +1013,25 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
       <AdInterstitial 
         isOpen={isStorageAdOpen}
         onComplete={() => {
-          socketService.unlockStorage(pin);
-          setIsStorageAdOpen(false);
+          if (currentUser?.role === 'host') {
+            // Only the host triggers the actual storage unlock on the server.
+            // The server will then broadcast stop-storage-ad to everyone.
+            socketService.emitHostAdCompleted(pin);
+          } else {
+            // Members just close their own ad modal — host completion unlocks storage for all
+            setIsStorageAdOpen(false);
+          }
         }}
         onClose={() => {
-          setIsStorageAdOpen(false);
-          addToast('Ad was cancelled. Storage was not expanded.', 'warning');
+          if (currentUser?.role === 'host') {
+            // Host cancelled — dismiss ad on all devices
+            setIsStorageAdOpen(false);
+            addToast('Ad cancelled by host. Storage was not expanded.', 'warning');
+          }
+          // Members cannot close the ad (no close button shown)
         }}
         actionLabel="Unlocking +25 MB Storage"
-        showCloseButton={true}
+        showCloseButton={currentUser?.role === 'host'}
       />
 
       {/* Host Offline Status Banner */}

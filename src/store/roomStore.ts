@@ -460,20 +460,14 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   updateRoomSettings: (settings) => {
-    // Note: Local settings will update dynamically via the broadcasted socket listener
-    // We emit to socket, server saves to DB, then sends room-settings-updated to everyone
     const pin = get().activeRoom?.pin;
     if (pin) {
-      // For simple text updates like room name, let's emit lock/mute chat if toggled
       if (settings.isLocked !== undefined) {
         socketService.toggleLockRoom(pin);
       } else if (settings.isMuted !== undefined) {
         socketService.toggleMuteChat(pin);
       } else {
-        // Send updates via socket
-        socketService.onRoomSettingsUpdated((room) => {
-          set({ activeRoom: { ...room, ...settings } });
-        });
+        socketService.updateRoomSettings(pin, settings);
       }
       get().addToast('Settings synchronized!', 'success');
     }
