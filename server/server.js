@@ -1666,12 +1666,16 @@ io.on('connection', (socket) => {
   // Share message / code / file event
   socket.on('send-feed-item', async ({ pin, item }) => {
     try {
+      const now = Date.now();
+      const cooldown = 1500; // 1.5s rate limit cooldown
+      const lastTime = rateLimitMap.get(socket.id);
+
       // Bypass 1.5s cooldown for files since they are already rate-limited via HTTP upload checks
-      if (item.type !== 'file' && lastTime && (now - lastTime < cooldown)) {
+      if (item && item.type !== 'file' && lastTime && (now - lastTime < cooldown)) {
         socket.emit('rate-limited', { message: 'You are sending messages too fast! Please wait a moment.' });
         return;
       }
-      if (item.type !== 'file') {
+      if (item && item.type !== 'file') {
         rateLimitMap.set(socket.id, now);
       }
 
