@@ -17,6 +17,8 @@ import Card from '@/components/ui/card';
 import { Switch } from '@/components/ui/input';
 import AdInterstitial from '@/components/AdInterstitial';
 import Image from 'next/image';
+import VoiceRoomPanel from '@/components/voice/VoiceRoomPanel';
+
 
 export default function RoomLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -418,8 +420,11 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
     { name: 'QR Code', path: `/room/${pin}/qr`, icon: <QrCode className="w-4 h-4" /> },
     { name: 'Activity', path: `/room/${pin}/activity`, icon: <Activity className="w-4 h-4" /> },
     { name: 'Search', path: `/room/${pin}/search`, icon: <Search className="w-4 h-4" /> },
-    { name: 'Settings', path: `/room/${pin}/settings`, icon: <Settings className="w-4 h-4" /> },
+    ...(currentUser?.role === 'host' ? [
+      { name: 'Settings', path: `/room/${pin}/settings`, icon: <Settings className="w-4 h-4" /> }
+    ] : []),
   ];
+
 
   const isSelected = (path: string) => {
     if (path === `/room/${pin}`) {
@@ -550,6 +555,12 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
             <span>Leave Room</span>
           </button>
         </nav>
+
+        {/* Collapsible Voice Room Panel */}
+        {currentUser && (
+          <VoiceRoomPanel pin={pin} currentUser={{ name: currentUser.name, role: currentUser.role }} />
+        )}
+
 
         {/* Host Controls Panel */}
         {isHost ? (

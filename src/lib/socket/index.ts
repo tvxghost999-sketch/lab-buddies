@@ -175,6 +175,9 @@ export const socketService = {
   transferHost: (pin: string, targetMemberId: string) => {
     socket?.emit('transfer-host-role', { pin, targetMemberId });
   },
+  claimHost: (pin: string) => {
+    socket?.emit('claim-host-role', { pin });
+  },
   emitMemberStorageFull: (pin: string, name: string) => {
     socket?.emit('member-storage-full', { pin, name });
   },
@@ -222,5 +225,73 @@ export const socketService = {
   },
   onSystemBroadcast: (callback: (data: { title: string; message: string; type: 'info' | 'warning' | 'alert'; timestamp: string }) => void) => {
     bindListener('system-broadcast', callback);
+  },
+  
+  // --- VOICE ROOM API ---
+  getSocketId: () => socket?.id || null,
+  joinVoice: (pin: string, name: string) => {
+    socket?.emit('voice:user-joined', { pin, name });
+  },
+  leaveVoice: (pin: string) => {
+    socket?.emit('voice:user-left', { pin });
+  },
+  getVoiceConfig: (callback: (config: { iceServers: any[]; maxParticipants: number }) => void) => {
+    socket?.emit('voice:get-config', callback);
+  },
+  sendVoiceOffer: (pin: string, targetSocketId: string, offer: any) => {
+    socket?.emit('voice:offer', { pin, targetSocketId, offer });
+  },
+  sendVoiceAnswer: (pin: string, targetSocketId: string, answer: any) => {
+    socket?.emit('voice:answer', { pin, targetSocketId, answer });
+  },
+  sendVoiceIceCandidate: (pin: string, targetSocketId: string, candidate: any) => {
+    socket?.emit('voice:ice-candidate', { pin, targetSocketId, candidate });
+  },
+  sendVoiceMute: (pin: string) => {
+    socket?.emit('voice:mute', { pin });
+  },
+  sendVoiceUnmute: (pin: string) => {
+    socket?.emit('voice:unmute', { pin });
+  },
+  onVoiceRoomUsers: (callback: (users: any[]) => void) => {
+    bindListener('voice:room-users', callback);
+  },
+  onVoiceUserJoined: (callback: (user: any) => void) => {
+    bindListener('voice:user-joined', callback);
+  },
+  onVoiceUserLeft: (callback: (data: { socketId: string }) => void) => {
+    bindListener('voice:user-left', callback);
+  },
+  onVoiceOffer: (callback: (data: { initiatorSocketId: string; offer: any }) => void) => {
+    bindListener('voice:offer', callback);
+  },
+  onVoiceAnswer: (callback: (data: { responderSocketId: string; answer: any }) => void) => {
+    bindListener('voice:answer', callback);
+  },
+  onVoiceIceCandidate: (callback: (data: { senderSocketId: string; candidate: any }) => void) => {
+    bindListener('voice:ice-candidate', callback);
+  },
+  onVoiceMute: (callback: (data: { socketId: string }) => void) => {
+    bindListener('voice:mute', callback);
+  },
+  onVoiceUnmute: (callback: (data: { socketId: string }) => void) => {
+    bindListener('voice:unmute', callback);
+  },
+  onVoiceRoomStateUpdated: (callback: (users: any[]) => void) => {
+    bindListener('voice:room-state-updated', callback);
+  },
+  onVoiceError: (callback: (data: { message: string }) => void) => {
+    bindListener('voice:error', callback);
+  },
+  onSocketConnect: (callback: () => void) => {
+    if (socket) {
+      socket.on('connect', callback);
+    }
+  },
+  offSocketConnect: (callback: () => void) => {
+    if (socket) {
+      socket.off('connect', callback);
+    }
   }
 };
+

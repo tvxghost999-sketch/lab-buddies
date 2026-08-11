@@ -37,8 +37,26 @@ export default function RoomDashboard() {
   const [composerMode, setComposerMode] = useState<'message' | 'code' | 'file'>('message');
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
   const [isReactionMenuOpen, setIsReactionMenuOpen] = useState(false);
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [fileCaption, setFileCaption] = useState('');
+  const [isHdQuality, setIsHdQuality] = useState(true);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const attachmentRef = useRef<HTMLDivElement>(null);
   const chatFeedRef = useRef<HTMLDivElement>(null);
+
+  // Create local image preview url when file changes
+  useEffect(() => {
+    if (!fileToUpload) {
+      setImagePreviewUrl('');
+      return;
+    }
+    if (fileToUpload.type.startsWith('image/')) {
+      const url = URL.createObjectURL(fileToUpload);
+      setImagePreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [fileToUpload]);
 
   // Scroll to bottom of the feed container when new messages arrive
   useEffect(() => {
@@ -356,23 +374,28 @@ export default function RoomDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const BACKEND_URL = getBackendUrl();
 
-  const uploadFile = async (file: File) => {
-    if (!file) return;
+  const handleFileUploadAndSend = async () => {
+    if (!fileToUpload) return;
+
+    if ((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host') {
+      addToast('You are muted and cannot upload files.', 'error');
+      return;
+    }
 
     const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
     const maxBytes = isPremium ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (file.size > maxBytes) {
+    if (fileToUpload.size > maxBytes) {
       addToast(`File size exceeds limit (${isPremium ? '50 MB' : '5 MB'}).`, 'error');
       return;
     }
 
-    // Switch composer mode to file so the user sees the attachment card
-    setComposerMode('file');
-    addToast(`Uploading ${file.name}...`, 'info');
     setIsFileUploading(true);
+    addToast(`Uploading ${fileToUpload.name}...`, 'info');
+    
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', fileToUpload);
     formData.append('pin', pin);
+    formData.append('hd', isHdQuality ? 'true' : 'false');
 
     try {
       const res = await fetch(`${BACKEND_URL}/api/upload`, {
@@ -382,12 +405,27 @@ export default function RoomDashboard() {
       
       if (res.ok) {
         const data = await res.json();
-        setSelectedFileName(data.originalName || data.fileName);
-        setSelectedFileSize(data.fileSize);
-        setSelectedFileType(data.fileType);
-        setSelectedFileUrl(data.fileUrl);
-        setSelectedFileCloudinaryId(data.cloudinaryPublicId || '');
-        addToast('File uploaded! Click Send to share.', 'success');
+        
+        const sender = currentUser || { id: 'temp-user', name: 'Anonymous', role: 'member', joinedAt: '12:00 PM', isOnline: true, isMuted: false };
+
+        addFeedItem({
+          type: 'file',
+          senderId: sender.id,
+          senderName: sender.name,
+          senderRole: sender.role,
+          fileName: data.fileName || data.originalName || fileToUpload.name,
+          fileSize: data.fileSize,
+          fileType: data.fileType,
+          fileUrl: data.fileUrl,
+          cloudinaryPublicId: data.cloudinaryPublicId || '',
+          content: fileCaption.trim() || undefined,
+        });
+
+        // Reset states
+        setFileToUpload(null);
+        setFileCaption('');
+        setComposerMode('message');
+        addToast('File shared successfully!', 'success');
       } else {
         const errData = await res.json().catch(() => ({}));
         if (errData.code === 'STORAGE_EXCEEDED') {
@@ -418,7 +456,8 @@ export default function RoomDashboard() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      uploadFile(file);
+      setFileToUpload(file);
+      setIsCodeEditorOpen(false);
     }
   };
 
@@ -461,7 +500,8 @@ export default function RoomDashboard() {
 
       if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0];
-        uploadFile(file);
+        setFileToUpload(file);
+        setIsCodeEditorOpen(false);
       }
     };
 
@@ -478,7 +518,7 @@ export default function RoomDashboard() {
     };
   }, []);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (isCooldownActive) {
@@ -486,24 +526,15 @@ export default function RoomDashboard() {
       return;
     }
 
-    if (activeRoom?.isMuted && currentUser?.role !== 'host') {
-      addToast('Chat is muted by the host.', 'error');
+    if (((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host')) {
+      addToast('You are muted and cannot send messages.', 'error');
       return;
     }
 
     const sender = currentUser || { id: 'temp-user', name: 'Anonymous', role: 'member', joinedAt: '12:00 PM', isOnline: true, isMuted: false };
 
-    if (composerMode === 'message') {
-      if (!textContent.trim()) return;
-      addFeedItem({
-        type: 'message',
-        senderId: sender.id,
-        senderName: sender.name,
-        senderRole: sender.role,
-        content: textContent,
-      });
-      setTextContent('');
-    } else if (composerMode === 'code') {
+    // 1. If Code Editor is open, send code snippet
+    if (isCodeEditorOpen) {
       if (!codeContent.trim()) {
         addToast('Please enter some code to share.', 'warning');
         return;
@@ -515,27 +546,99 @@ export default function RoomDashboard() {
         senderRole: sender.role,
         code: codeContent,
         language: codeLanguage,
+        content: textContent.trim() || undefined,
       });
       setCodeContent('');
-      setComposerMode('message');
-    } else if (composerMode === 'file' && selectedFileUrl) {
+      setTextContent('');
+      setIsCodeEditorOpen(false);
+      triggerCooldown();
+      return;
+    }
+
+    // 2. If a file is selected, upload and send it
+    if (fileToUpload) {
+      if (isFileUploading) return;
+      
+      const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
+      const maxBytes = isPremium ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (fileToUpload.size > maxBytes) {
+        addToast(`File size exceeds limit (${isPremium ? '50 MB' : '5 MB'}).`, 'error');
+        return;
+      }
+
+      setIsFileUploading(true);
+      addToast(`Uploading ${fileToUpload.name}...`, 'info');
+      
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+      formData.append('pin', pin);
+      formData.append('hd', isHdQuality ? 'true' : 'false');
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          
+          addFeedItem({
+            type: 'file',
+            senderId: sender.id,
+            senderName: sender.name,
+            senderRole: sender.role,
+            fileName: data.fileName || data.originalName || fileToUpload.name,
+            fileSize: data.fileSize,
+            fileType: data.fileType,
+            fileUrl: data.fileUrl,
+            cloudinaryPublicId: data.cloudinaryPublicId || '',
+            content: textContent.trim() || undefined,
+          });
+
+          // Reset states
+          setFileToUpload(null);
+          setTextContent('');
+          addToast('File shared successfully!', 'success');
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (errData.code === 'STORAGE_EXCEEDED') {
+            if (currentUser?.role === 'host') {
+              showConfirm(
+                "Storage Limit Reached",
+                `The room storage capacity has been reached. Would you like to expand the storage limit by 25MB by watching a 5-second advertisement on all connected devices?`,
+                () => {
+                  socketService.emitTriggerStorageAdRequest(pin);
+                }
+              );
+            } else {
+              addToast("Storage capacity exceeded! Notifying host to expand the limit...", "warning");
+              socketService.emitMemberStorageFull(pin, currentUser?.name || 'Anonymous');
+            }
+          } else {
+            addToast(errData.error || 'File upload failed.', 'error');
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        addToast('File upload failed due to network error.', 'error');
+      } finally {
+        setIsFileUploading(false);
+      }
+      return;
+    }
+
+    // 3. Otherwise, send text message
+    if (textContent.trim()) {
       addFeedItem({
-        type: 'file',
+        type: 'message',
         senderId: sender.id,
         senderName: sender.name,
         senderRole: sender.role,
-        fileName: selectedFileName,
-        fileSize: selectedFileSize,
-        fileType: selectedFileType,
-        fileUrl: selectedFileUrl,
-        cloudinaryPublicId: selectedFileCloudinaryId,
+        content: textContent,
       });
-      setSelectedFileName('');
-      setSelectedFileSize('');
-      setSelectedFileType('');
-      setSelectedFileUrl('');
-      setSelectedFileCloudinaryId('');
-      setComposerMode('message');
+      setTextContent('');
+      triggerCooldown();
     }
   };
 
@@ -919,6 +1022,12 @@ export default function RoomDashboard() {
 
                       {/* File Upload card */}
                       {item.type === 'file' && (
+                        <div className="flex flex-col gap-1.5 max-w-sm w-full text-left">
+                          {item.content && (
+                            <div className="text-xs sm:text-sm text-[#f4f4f5] select-text break-words mb-1 pr-2">
+                              {item.content}
+                            </div>
+                          )}
                         <div 
                           onMouseDown={() => startLongPress(itemId)}
                           onMouseUp={endLongPress}
@@ -966,6 +1075,7 @@ export default function RoomDashboard() {
                               <Download className="w-4 h-4" />
                             )}
                           </div>
+                        </div>
                         </div>
                       )}
 
@@ -1081,6 +1191,12 @@ export default function RoomDashboard() {
 
                       {/* File upload card */}
                       {item.type === 'file' && (
+                        <div className="flex flex-col gap-1.5 max-w-sm w-full text-left">
+                          {item.content && (
+                            <div className="text-xs sm:text-sm text-[#f4f4f5] select-text break-words mb-1 pl-2">
+                              {item.content}
+                            </div>
+                          )}
                         <div 
                           onMouseDown={() => startLongPress(itemId)}
                           onMouseUp={endLongPress}
@@ -1129,6 +1245,7 @@ export default function RoomDashboard() {
                             )}
                           </div>
                         </div>
+                        </div>
                       )}
 
                       {/* Render Reactions badges */}
@@ -1146,204 +1263,214 @@ export default function RoomDashboard() {
       {/* Composer Frame */}
       <div className="p-4 border-t border-white/[0.08] bg-[#0f0f10] flex flex-col gap-3 flex-shrink-0">
         
-        {/* Composer Sub-forms */}
-        <form onSubmit={handleSend} className="flex flex-row gap-2.5 items-end w-full relative">
-          
-          {/* Type 1: Text message */}
-          {composerMode === 'message' && (
-            <div className="flex-1 relative flex items-center min-w-0" ref={attachmentRef}>
-              <button
-                type="button"
-                onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
-                className="absolute left-3 p-1.5 text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-white/[0.06] rounded-lg hover:scale-105 transition-all"
-                title="Attach file or code snippet"
-              >
-                <Paperclip className="w-4 h-4" />
-              </button>
-              {isAttachmentMenuOpen && (
-                <div className="absolute bottom-full left-0 mb-3 bg-[#0f0f10] border border-white/[0.1] rounded-xl p-2 flex flex-col gap-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 min-w-[160px]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setComposerMode('code');
-                      setIsAttachmentMenuOpen(false);
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-white/[0.06] rounded-lg text-xs transition-colors text-left text-[#f4f4f5]"
-                  >
-                    <Code className="w-3.5 h-3.5 text-[#FFD600]" />
-                    <span>Code Snippet</span>
-                  </button>
-                  {activeRoom?.isFileSharingEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setComposerMode('file');
-                        setIsAttachmentMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-white/[0.06] rounded-lg text-xs transition-colors text-left text-[#f4f4f5]"
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-[#FF6A00]" />
-                      <span>File Upload</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsReactionMenuOpen(true);
-                      setIsAttachmentMenuOpen(false);
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-white/[0.06] rounded-lg text-xs transition-colors text-left text-[#f4f4f5]"
-                  >
-                    <Smile className="w-3.5 h-3.5 text-[#FFD600]" />
-                    <span>Send Reaction</span>
-                  </button>
-                </div>
-              )}
-              {isReactionMenuOpen && (
-                <div className="absolute bottom-full left-0 mb-3 bg-[#0f0f10] border border-white/[0.1] rounded-full p-2 flex gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 animate-in fade-in slide-in-from-bottom-2 duration-150" onClick={(e) => e.stopPropagation()}>
-                  {['👍', '❤️', '😂', '🎉', '😮', '👏'].map(emoji => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => handleSendLiveReaction(emoji)}
-                      className="text-lg hover:scale-130 transition-transform active:scale-90 cursor-pointer"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setIsReactionMenuOpen(false)}
-                    className="text-xs text-[#a1a1aa] hover:text-[#f4f4f5] px-2 border-l border-white/10 ml-1 cursor-pointer font-medium"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-              <input
-                type="text"
-                placeholder={
-                  activeRoom?.isMuted && currentUser?.role !== 'host' 
-                    ? 'Chat messaging is muted by host' 
-                    : 'Type your message here...'
-                }
-                disabled={(activeRoom?.isMuted && currentUser?.role !== 'host') || isCooldownActive}
-                value={textContent}
-                onChange={(e) => setTextContent(e.target.value)}
-                className="w-full h-11 border border-white/[0.08] rounded-xl bg-white/[0.03] pl-10 pr-4 text-xs sm:text-sm font-medium focus:outline-none text-[#f4f4f5] focus:border-[#FFD600]/40 placeholder-white/30"
-              />
-            </div>
-          )}
-
-          {/* Type 2: Code block */}
-          {composerMode === 'code' && (
-            <div className="flex-1 flex flex-col gap-2.5 border border-white/[0.08] rounded-xl p-3 bg-white/[0.02] min-w-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-[#a1a1aa] uppercase tracking-wider font-semibold">Snippet Editor</span>
-                  <button 
-                    type="button"
-                    onClick={() => setComposerMode('message')}
-                    className="text-[#EF4444] hover:bg-white/[0.06] p-1 rounded-lg transition-colors"
-                    title="Cancel and return to chat"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="w-28 sm:w-32">
-                  <Select
-                    value={codeLanguage}
-                    onChange={(e) => setCodeLanguage(e.target.value)}
-                    options={[
-                      { value: 'C++', label: 'C++' },
-                      { value: 'JavaScript', label: 'JavaScript' },
-                      { value: 'Python', label: 'Python' },
-                      { value: 'Java', label: 'Java' },
-                      { value: 'HTML/CSS', label: 'HTML/CSS' },
-                      { value: 'Bash', label: 'Bash' }
-                    ]}
-                    className="w-full"
-                  />
-                </div>
+        {/* Code Snippet Editor (Above Input) */}
+        {isCodeEditorOpen && (
+          <div className="border border-white/[0.08] rounded-xl p-3 bg-white/[0.02] flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#a1a1aa] uppercase tracking-wider font-semibold">Snippet Editor</span>
+              <div className="w-28 sm:w-32 flex items-center gap-2">
+                <Select
+                  value={codeLanguage}
+                  onChange={(e) => setCodeLanguage(e.target.value)}
+                  options={[
+                    { value: 'C++', label: 'C++' },
+                    { value: 'JavaScript', label: 'JavaScript' },
+                    { value: 'Python', label: 'Python' },
+                    { value: 'Java', label: 'Java' },
+                    { value: 'HTML/CSS', label: 'HTML/CSS' },
+                    { value: 'Text', label: 'Plain Text' }
+                  ]}
+                />
+                <button 
+                  type="button"
+                  onClick={() => setIsCodeEditorOpen(false)}
+                  className="text-[#EF4444] hover:bg-white/[0.06] p-1 rounded-lg transition-colors"
+                  title="Close editor"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <textarea
-                placeholder="Paste or write your code snippet here..."
-                value={codeContent}
-                onChange={(e) => setCodeContent(e.target.value)}
-                className="w-full h-24 border border-white/[0.08] bg-white/[0.03] rounded-lg p-2 font-mono text-xs text-[#f4f4f5] focus:outline-none focus:border-[#FFD600]/40"
-              />
             </div>
-          )}
+            <textarea
+              placeholder="Paste or write your code snippet here..."
+              value={codeContent}
+              onChange={(e) => setCodeContent(e.target.value)}
+              className="w-full h-24 border border-white/[0.08] bg-white/[0.03] rounded-lg p-2 font-mono text-xs text-[#f4f4f5] focus:outline-none focus:border-[#FFD600]/40"
+            />
+          </div>
+        )}
 
-          {/* Type 3: File Upload */}
-          {composerMode === 'file' && (
-            <div className="flex-1 flex flex-col gap-2 border border-white/[0.08] rounded-xl p-3 bg-white/[0.02] min-w-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-[#a1a1aa] uppercase tracking-wider font-semibold">File Uploader</span>
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setSelectedFileName('');
-                      setSelectedFileSize('');
-                      setSelectedFileType('');
-                      setSelectedFileUrl('');
-                      setSelectedFileCloudinaryId('');
-                      setComposerMode('message');
-                    }}
-                    className="text-[#EF4444] hover:bg-white/[0.06] p-1 rounded-lg transition-colors"
-                    title="Cancel and return to chat"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+        {/* File Preview Card (Above Input) */}
+        {fileToUpload && (
+          <div className="border border-white/[0.08] rounded-xl p-3 bg-white/[0.02] flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#a1a1aa] uppercase tracking-wider font-semibold">File Selected</span>
+              {!isFileUploading && (
+                <button 
+                  type="button"
+                  onClick={() => setFileToUpload(null)}
+                  className="text-[#EF4444] hover:bg-white/[0.06] p-1.5 rounded-lg transition-colors"
+                  title="Remove file"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {isFileUploading ? (
+              <div className="w-full py-3 bg-[#4F7CFF]/15 border border-[#4F7CFF]/20 rounded-lg text-xs font-semibold text-[#4F7CFF] flex items-center justify-center gap-2 select-none">
+                <div className="w-4 h-4 border-2 border-white/20 border-t-[#4F7CFF] rounded-full animate-spin flex-shrink-0" />
+                <span>Uploading & Compressing File...</span>
               </div>
-              {selectedFileName ? (
+            ) : (
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between border border-white/[0.08] bg-white/[0.03] rounded-lg p-2.5 text-xs gap-4 min-w-0">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <File className="w-4 h-4 text-[#8B5CF6] flex-shrink-0" />
-                    <span className="truncate text-left font-semibold text-[#f4f4f5]">{selectedFileName}</span>
-                    <span className="text-[#71717a] text-[10px] flex-shrink-0">({selectedFileSize})</span>
+                    {imagePreviewUrl ? (
+                      <div className="w-9 h-9 rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                        <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <File className="w-4 h-4 text-[#8B5CF6] flex-shrink-0" />
+                    )}
+                    <span className="truncate text-left font-semibold text-[#f4f4f5]">{fileToUpload.name}</span>
+                    <span className="text-[#71717a] text-[10px] flex-shrink-0">
+                      ({(fileToUpload.size / (1024 * 1024)).toFixed(2)} MB)
+                    </span>
                   </div>
                   <button 
                     type="button"
-                    onClick={() => { setSelectedFileName(''); setSelectedFileSize(''); setSelectedFileType(''); setSelectedFileUrl(''); }}
-                    className="text-[#EF4444] hover:underline"
+                    onClick={() => setFileToUpload(null)}
+                    className="text-[#EF4444] hover:underline text-[11px]"
                   >
-                    Clear
+                    Remove
                   </button>
                 </div>
-              ) : isFileUploading ? (
-                <div className="w-full py-2 bg-[#4F7CFF]/15 border border-[#4F7CFF]/20 rounded-lg text-xs font-semibold text-[#4F7CFF] flex items-center justify-center gap-2 select-none">
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-[#4F7CFF] rounded-full animate-spin flex-shrink-0" />
-                  <span>Uploading File...</span>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-2 bg-white/[0.04] border border-white/[0.08] text-white hover:bg-white/[0.06] rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                    <span>Choose File from Computer</span>
-                  </button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    onChange={handleFileChange} 
+                
+                {/* HD Quality Checkbox */}
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isHdQuality}
+                    onChange={(e) => setIsHdQuality(e.target.checked)}
+                    className="rounded border-white/20 bg-white/[0.03] text-[#FFD600] focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5"
                   />
-                </div>
-              )}
-            </div>
-          )}
+                  <span className="text-xs text-[#a1a1aa] font-medium">Send in HD Quality (no compression)</span>
+                </label>
+              </div>
+            )}
+          </div>
+        )}
 
-          {/* Action Buttons */}
+        {/* Composer Form with Always-Visible text input */}
+        <form onSubmit={handleSend} className="flex flex-row gap-2.5 items-end w-full relative">
+          
+          <div className="flex-1 relative flex items-center min-w-0" ref={attachmentRef}>
+            
+            {/* Paperclip Button on the Left */}
+            {activeRoom?.isFileSharingEnabled && (
+              <button
+                type="button"
+                disabled={((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host') || isFileUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute left-3 p-1.5 text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-white/[0.06] rounded-lg hover:scale-105 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                title="Choose file from computer"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Hidden file input */}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleFileChange} 
+            />
+
+            {/* Reaction Emojis Popover (renders above the input box) */}
+            {isReactionMenuOpen && (
+              <div className="absolute bottom-full left-0 mb-3 bg-[#0f0f10] border border-white/[0.1] rounded-full p-2 flex gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 animate-in fade-in slide-in-from-bottom-2 duration-150" onClick={(e) => e.stopPropagation()}>
+                {['👍', '❤️', '😂', '🎉', '😮', '👏'].map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      handleSendLiveReaction(emoji);
+                      setIsReactionMenuOpen(false);
+                    }}
+                    className="text-lg hover:scale-130 transition-transform active:scale-90 cursor-pointer"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setIsReactionMenuOpen(false)}
+                  className="text-xs text-[#a1a1aa] hover:text-[#f4f4f5] px-2 border-l border-white/10 ml-1 cursor-pointer font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+
+            {/* Text Input field */}
+            <input
+              type="text"
+              placeholder={
+                (activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host' 
+                  ? 'You are muted and cannot message' 
+                  : fileToUpload 
+                    ? 'Add a caption to the file...' 
+                    : isCodeEditorOpen 
+                      ? 'Add an explanation to the code snippet...' 
+                      : 'Type your message here...'
+              }
+              disabled={((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host') || isFileUploading}
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              className={`w-full h-11 border border-white/[0.08] rounded-xl bg-white/[0.03] pr-20 text-xs sm:text-sm font-medium focus:outline-none text-[#f4f4f5] focus:border-[#FFD600]/40 placeholder-white/30 ${
+                activeRoom?.isFileSharingEnabled ? 'pl-10' : 'pl-4'
+              }`}
+            />
+
+            {/* Code and Reaction buttons inside the text input box on the right */}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {/* Code Snippet Button */}
+              <button
+                type="button"
+                disabled={(activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host'}
+                onClick={() => {
+                  setIsCodeEditorOpen(!isCodeEditorOpen);
+                  setFileToUpload(null);
+                }}
+                className={`p-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none ${
+                  isCodeEditorOpen ? 'text-[#FFD600] bg-white/[0.06]' : 'text-[#a1a1aa] hover:text-[#FFD600] hover:bg-white/[0.06]'
+                }`}
+                title="Share Code Snippet"
+              >
+                <Code className="w-4 h-4" />
+              </button>
+              
+              {/* Smile Reaction Button */}
+              <button
+                type="button"
+                onClick={() => setIsReactionMenuOpen(!isReactionMenuOpen)}
+                className={`p-1.5 rounded-lg transition-all active:scale-95 ${
+                  isReactionMenuOpen ? 'text-[#FFD600] bg-white/[0.06]' : 'text-[#a1a1aa] hover:text-[#FFD600] hover:bg-white/[0.06]'
+                }`}
+                title="Send Live Reaction"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+            </div>
+
+          </div>
+
+          {/* Send Button */}
           <div className="flex gap-2 flex-shrink-0">
             <button 
               type="submit" 
-              disabled={isCooldownActive || isFileUploading || (composerMode === 'file' && !selectedFileName)}
+              disabled={isCooldownActive || isFileUploading || (isCodeEditorOpen && !codeContent.trim()) || ((activeRoom?.isMuted || currentUser?.isMuted) && currentUser?.role !== 'host')}
               className="w-11 h-11 sm:w-auto sm:h-11 sm:gap-1.5 rounded-full sm:rounded-xl bg-[#FFD600] text-[#050608] hover:bg-[#FFC000] font-semibold text-xs uppercase flex items-center justify-center transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed select-none p-0 sm:px-5"
             >
               <Send className="w-4 h-4 flex-shrink-0" />
@@ -1353,7 +1480,6 @@ export default function RoomDashboard() {
 
         </form>
       </div>
-
       <AdInterstitial 
         isOpen={isAdOpen} 
         onComplete={() => {

@@ -19,12 +19,14 @@ export default function MembersPage() {
   const toggleMuteMember = useRoomStore((state) => state.toggleMuteMember);
   const kickMember = useRoomStore((state) => state.kickMember);
   const transferHost = useRoomStore((state) => state.transferHost);
+  const claimHost = useRoomStore((state) => state.claimHost);
   const addToast = useRoomStore((state) => state.addToast);
   const showConfirm = useRoomStore((state) => state.showConfirm);
 
   const [searchQuery, setSearchQuery] = useState('');
 
   const isHost = currentUser?.role === 'host';
+  const hasOnlineHost = members.some((m) => m.role === 'host');
 
   const filteredMembers = members.filter((m) =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -75,6 +77,35 @@ export default function MembersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Host Recovery Banner */}
+      {!hasOnlineHost && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-[#FFD600]/20 bg-[#FFD600]/5 text-[#FFD600] rounded-2xl text-xs font-medium text-left">
+          <div className="flex items-center gap-2.5">
+            <Crown className="w-5 h-5 flex-shrink-0 text-[#FFD600] animate-pulse" />
+            <div>
+              <strong className="block text-sm">Room is Hostless</strong>
+              <span className="text-[#a1a1aa] mt-0.5 block">
+                The room host is currently offline. Any active member can claim the Host role to manage settings and permissions.
+              </span>
+            </div>
+          </div>
+          <Button 
+            variant="yellow" 
+            size="sm" 
+            onClick={() => {
+              showConfirm(
+                'Claim Host Role',
+                'Are you sure you want to claim the Host role for this room? You will gain permissions to manage all room settings and members.',
+                () => claimHost()
+              );
+            }}
+            className="uppercase text-[10px] font-bold tracking-wider shadow-sm flex-shrink-0"
+          >
+            Claim Host
+          </Button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="p-4 flex items-center justify-between bg-[#0f0f10] border border-white/[0.08] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.4)]">

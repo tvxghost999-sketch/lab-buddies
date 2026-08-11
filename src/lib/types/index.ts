@@ -79,3 +79,11 @@ export interface LoggedInUser {
   isVerified?: boolean;
   rollNumber?: string;
 }
+
+export interface VoiceParticipant {
+  socketId: string;
+  name: string;
+  isMuted: boolean;
+  isSpeaking?: boolean;
+}
+

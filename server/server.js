@@ -113,6 +113,22 @@ mongoose.connect(mongoURI)
   .then(() => console.log('MongoDB connected successfully.'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
+// --- Voice Room State and Configuration ---
+const voiceRooms = new Map(); // roomPin -> Map<socketId, { name, isMuted }>
+const VOICE_PARTICIPANT_LIMIT = parseInt(process.env.VOICE_PARTICIPANT_LIMIT, 10) || 20;
+
+// Configurable STUN/TURN servers
+let ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" }
+];
+if (process.env.ICE_SERVERS) {
+  try {
+    ICE_SERVERS = JSON.parse(process.env.ICE_SERVERS);
+  } catch (e) {
+    console.error('Failed to parse ICE_SERVERS env variable, using default Google STUN.', e);
+  }
+}
+
 // --- Schemas & Models ---
 
 const UserSchema = new mongoose.Schema({
@@ -143,6 +159,7 @@ const RoomSchema = new mongoose.Schema({
   createdAt: { type: String, required: true },
   createdAtMs: { type: Number, default: Date.now },
   createdBy: { type: String, required: true },
+  originalCreator: { type: String },
   status: { type: String, default: 'Active' },
   password: { type: String },
   storageLimit: { type: Number, default: 25 * 1024 * 1024 },
@@ -719,6 +736,7 @@ app.post('/api/room', async (req, res) => {
       createdAt: timestamp,
       createdAtMs: Date.now(),
       createdBy,
+      originalCreator: createdBy,
       status: 'Active',
       storageLimit: 25 * 1024 * 1024 // 25MB initial limit
     });
@@ -833,10 +851,28 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     // If Cloudinary is configured, upload it there
     if (useCloudinary) {
       try {
-        const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        const isHd = req.body.hd === 'true';
+        const fileExtLower = path.extname(req.file.originalname).toLowerCase();
+        const isImage = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(fileExtLower);
+        const isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(fileExtLower);
+
+        const uploadOptions = {
           resource_type: 'auto',
           folder: 'lab_buddies_uploads',
-        });
+        };
+
+        if (!isHd) {
+          if (isImage) {
+            uploadOptions.quality = 'auto:eco';
+            uploadOptions.transformation = [
+              { width: 1200, height: 1200, crop: 'limit' }
+            ];
+          } else if (isVideo) {
+            uploadOptions.quality = 'auto:eco';
+          }
+        }
+
+        const uploadResult = await cloudinary.uploader.upload(req.file.path, uploadOptions);
 
         // Cleanup local temporary file immediately
         try {
@@ -845,13 +881,20 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
           console.error('Failed to unlink local temporary file:', unlinkErr);
         }
 
+        const finalSizeBytes = uploadResult.bytes || req.file.size;
+        const finalSizeMB = (finalSizeBytes / (1024 * 1024)).toFixed(2);
+        let finalSizeStr = `${finalSizeMB} MB`;
+        if (finalSizeBytes < 1024 * 1024) {
+          finalSizeStr = `${(finalSizeBytes / 1024).toFixed(2)} KB`;
+        }
+
         return res.status(200).json({
           fileName: req.file.originalname,
-          fileSize: fileSizeStr,
+          fileSize: finalSizeStr,
           fileType: fileExt,
           fileUrl: uploadResult.secure_url,
           cloudinaryPublicId: uploadResult.public_id,
-          fileSizeBytes: req.file.size,
+          fileSizeBytes: finalSizeBytes,
         });
       } catch (cloudinaryErr) {
         console.error('Cloudinary upload error, falling back to local storage URL:', cloudinaryErr);
@@ -1283,24 +1326,40 @@ io.on('connection', (socket) => {
       // Determine role: creator is host, everyone else is member
       const room = await Room.findOne({ pin });
       let assignedRole = 'member';
+      let normalizedName = name;
       if (room) {
-        if (room.createdBy === name) {
+        const creatorName = room.originalCreator || room.createdBy;
+        if (creatorName && creatorName.toLowerCase() === name.toLowerCase()) {
           assignedRole = 'host';
+          normalizedName = creatorName; // Enforce original case
+          
+          // Demote any other user who is currently host in that room to member
+          await Member.updateMany({ roomPin: pin, name: { $ne: normalizedName }, role: 'host' }, { role: 'member' });
+          
+          // Reset room's createdBy back to the original host
+          if (room.createdBy !== normalizedName) {
+            room.createdBy = normalizedName;
+            await room.save();
+          }
+        } else if (room.createdBy && room.createdBy.toLowerCase() === name.toLowerCase()) {
+          assignedRole = 'host';
+          normalizedName = room.createdBy;
         }
       }
 
-      // Save member connection
-      let member = await Member.findOne({ roomPin: pin, name });
+      // Save member connection (case-insensitive lookup to prevent duplicate records)
+      let member = await Member.findOne({ roomPin: pin, name: { $regex: new RegExp(`^${normalizedName}$`, 'i') } });
       if (member) {
         member.socketId = socket.id;
         member.isOnline = true;
         member.role = assignedRole; // Sync role
+        member.name = normalizedName; // Keep consistent casing
         await member.save();
       } else {
         member = new Member({
           roomPin: pin,
           socketId: socket.id,
-          name,
+          name: normalizedName,
           role: assignedRole,
           joinedAt: timestamp,
           isOnline: true,
@@ -1850,6 +1909,63 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Claim Host Role (when no active host is online)
+  socket.on('claim-host-role', async ({ pin }) => {
+    try {
+      const room = await Room.findOne({ pin });
+      if (!room) return;
+
+      // Check if there is any host currently online in the room
+      const activeHost = await Member.findOne({ roomPin: pin, role: 'host', isOnline: true });
+      if (activeHost) {
+        socket.emit('rate-limited', { message: 'Action rejected: the host is currently online in the room.' });
+        return;
+      }
+
+      // Find the member claiming the role
+      const claimant = await Member.findOne({ socketId: socket.id, roomPin: pin });
+      if (!claimant) {
+        socket.emit('rate-limited', { message: 'Member not found.' });
+        return;
+      }
+
+      // Demote any offline hosts to member to avoid multiple hosts
+      await Member.updateMany({ roomPin: pin, role: 'host' }, { role: 'member' });
+
+      // Promote the claimant
+      claimant.role = 'host';
+      await claimant.save();
+
+      // Update room creator, preserving the original host name
+      if (!room.originalCreator) {
+        room.originalCreator = room.createdBy;
+      }
+      room.createdBy = claimant.name;
+      await room.save();
+
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const newActivity = new Activity({
+        roomPin: pin,
+        type: 'info',
+        description: `${claimant.name} claimed the Host role (previous host went offline)`,
+        timestamp,
+        user: 'System'
+      });
+      await newActivity.save();
+
+      const activeMembers = await Member.find({ roomPin: pin, isOnline: true });
+      const activeActivities = await Activity.find({ roomPin: pin }).sort({ _id: -1 }).limit(30);
+
+      io.to(pin).emit('room-settings-updated', room);
+      io.to(pin).emit('room-members-updated', activeMembers);
+      io.to(pin).emit('activities-updated', activeActivities);
+      
+      console.log(`[Host] Member ${claimant.name} claimed the Host role in room ${pin}`);
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
   // Host Controls: Delete Room (Scrub all data)
   socket.on('delete-room', async ({ pin }) => {
     try {
@@ -1942,10 +2058,220 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- VOICE ROOM SIGNALING EVENTS ---
+  
+  // Expose WebRTC configurations dynamically
+  socket.on('voice:get-config', (callback) => {
+    if (typeof callback === 'function') {
+      callback({
+        iceServers: ICE_SERVERS,
+        maxParticipants: VOICE_PARTICIPANT_LIMIT
+      });
+    }
+  });
+
+  // When a user joins the voice room
+  socket.on('voice:user-joined', async ({ pin, name }) => {
+    try {
+      // 1. Security validation: Verify the user is an online member of this specific room
+      const member = await Member.findOne({ roomPin: pin, name, isOnline: true });
+      if (!member) {
+        console.error(`[Voice Security] Access Denied: User ${name} is not an online member of Room ${pin}`);
+        return;
+      }
+
+      // Ensure voice room exists
+      if (!voiceRooms.has(pin)) {
+        voiceRooms.set(pin, new Map());
+      }
+      const voiceRoom = voiceRooms.get(pin);
+
+      // 2. Validate max participant limit
+      const room = await Room.findOne({ pin });
+      const limit = room ? (room.maxMembers || VOICE_PARTICIPANT_LIMIT) : VOICE_PARTICIPANT_LIMIT;
+      if (voiceRoom.size >= limit) {
+        console.warn(`[Voice] Join rejected: Room ${pin} voice channel is full (${voiceRoom.size}/${limit})`);
+        socket.emit('voice:error', { message: 'Voice room is full.' });
+        return;
+      }
+
+      // Prevent duplicate connection under same socket.id
+      if (voiceRoom.has(socket.id)) {
+        console.log(`[Voice] User ${name} already connected in voice room ${pin}`);
+        return;
+      }
+
+      // Save user details
+      voiceRoom.set(socket.id, { name, isMuted: false });
+
+      // Join the isolated Socket.io voice room for signaling broadcast
+      socket.join(`voice:${pin}`);
+      console.log(`[Voice] User ${name} (${socket.id}) joined voice channel in Room ${pin}`);
+
+      // Collect existing voice room participants (excluding current joiner)
+      const existingUsers = [];
+      voiceRoom.forEach((val, key) => {
+        if (key !== socket.id) {
+          existingUsers.push({
+            socketId: key,
+            name: val.name,
+            isMuted: val.isMuted
+          });
+        }
+      });
+
+      // Send current users list to the new joiner
+      socket.emit('voice:room-users', existingUsers);
+
+      // Broadcast join notification to existing members in this voice channel
+      socket.to(`voice:${pin}`).emit('voice:user-joined', {
+        socketId: socket.id,
+        name,
+        isMuted: false
+      });
+
+      // Broadcast updated general presence list to the entire text room
+      io.to(pin).emit('voice:room-state-updated', Array.from(voiceRoom.entries()).map(([id, val]) => ({
+        socketId: id,
+        name: val.name,
+        isMuted: val.isMuted
+      })));
+
+    } catch (error) {
+      console.error('[Voice] Error joining voice room:', error);
+      socket.emit('voice:error', { message: 'An error occurred while joining the voice room.' });
+    }
+  });
+
+  // When a user leaves the voice room
+  socket.on('voice:user-left', ({ pin }) => {
+    try {
+      const voiceRoom = voiceRooms.get(pin);
+      if (voiceRoom && voiceRoom.has(socket.id)) {
+        const user = voiceRoom.get(socket.id);
+        voiceRoom.delete(socket.id);
+
+        socket.leave(`voice:${pin}`);
+        console.log(`[Voice] User ${user.name} (${socket.id}) left voice channel in Room ${pin}`);
+
+        // Broadcast to other voice room participants
+        socket.to(`voice:${pin}`).emit('voice:user-left', { socketId: socket.id });
+
+        // Update overall presence
+        io.to(pin).emit('voice:room-state-updated', Array.from(voiceRoom.entries()).map(([id, val]) => ({
+          socketId: id,
+          name: val.name,
+          isMuted: val.isMuted
+        })));
+      }
+    } catch (error) {
+      console.error('[Voice] Error leaving voice room:', error);
+    }
+  });
+
+  // WebRTC offer signaling (only allow if both sender & receiver are in same voice room)
+  socket.on('voice:offer', ({ pin, targetSocketId, offer }) => {
+    const voiceRoom = voiceRooms.get(pin);
+    if (voiceRoom && voiceRoom.has(socket.id) && voiceRoom.has(targetSocketId)) {
+      socket.to(targetSocketId).emit('voice:offer', {
+        initiatorSocketId: socket.id,
+        offer
+      });
+    } else {
+      console.warn(`[Voice Security] Blocked offer: Sockets not in same voice room ${pin}`);
+    }
+  });
+
+  // WebRTC answer signaling (only allow if both sender & receiver are in same voice room)
+  socket.on('voice:answer', ({ pin, targetSocketId, answer }) => {
+    const voiceRoom = voiceRooms.get(pin);
+    if (voiceRoom && voiceRoom.has(socket.id) && voiceRoom.has(targetSocketId)) {
+      socket.to(targetSocketId).emit('voice:answer', {
+        responderSocketId: socket.id,
+        answer
+      });
+    } else {
+      console.warn(`[Voice Security] Blocked answer: Sockets not in same voice room ${pin}`);
+    }
+  });
+
+  // WebRTC ICE Candidate signaling (only allow if both sender & receiver are in same voice room)
+  socket.on('voice:ice-candidate', ({ pin, targetSocketId, candidate }) => {
+    const voiceRoom = voiceRooms.get(pin);
+    if (voiceRoom && voiceRoom.has(socket.id) && voiceRoom.has(targetSocketId)) {
+      socket.to(targetSocketId).emit('voice:ice-candidate', {
+        senderSocketId: socket.id,
+        candidate
+      });
+    } else {
+      console.warn(`[Voice Security] Blocked ice-candidate: Sockets not in same voice room ${pin}`);
+    }
+  });
+
+  // Microphone mute
+  socket.on('voice:mute', ({ pin }) => {
+    try {
+      const voiceRoom = voiceRooms.get(pin);
+      if (voiceRoom && voiceRoom.has(socket.id)) {
+        const user = voiceRoom.get(socket.id);
+        user.isMuted = true;
+
+        socket.to(`voice:${pin}`).emit('voice:mute', { socketId: socket.id });
+
+        io.to(pin).emit('voice:room-state-updated', Array.from(voiceRoom.entries()).map(([id, val]) => ({
+          socketId: id,
+          name: val.name,
+          isMuted: val.isMuted
+        })));
+      }
+    } catch (error) {
+      console.error('[Voice] Error muting mic:', error);
+    }
+  });
+
+  // Microphone unmute
+  socket.on('voice:unmute', ({ pin }) => {
+    try {
+      const voiceRoom = voiceRooms.get(pin);
+      if (voiceRoom && voiceRoom.has(socket.id)) {
+        const user = voiceRoom.get(socket.id);
+        user.isMuted = false;
+
+        socket.to(`voice:${pin}`).emit('voice:unmute', { socketId: socket.id });
+
+        io.to(pin).emit('voice:room-state-updated', Array.from(voiceRoom.entries()).map(([id, val]) => ({
+          socketId: id,
+          name: val.name,
+          isMuted: val.isMuted
+        })));
+      }
+    } catch (error) {
+      console.error('[Voice] Error unmuting mic:', error);
+    }
+  });
+
   // Disconnection handler
   socket.on('disconnect', async () => {
     rateLimitMap.delete(socket.id);
     try {
+      // Clean up voice room membership if any
+      voiceRooms.forEach((voiceRoom, pin) => {
+        if (voiceRoom.has(socket.id)) {
+          const user = voiceRoom.get(socket.id);
+          voiceRoom.delete(socket.id);
+          
+          socket.to(`voice:${pin}`).emit('voice:user-left', { socketId: socket.id });
+          
+          io.to(pin).emit('voice:room-state-updated', Array.from(voiceRoom.entries()).map(([id, val]) => ({
+            socketId: id,
+            name: val.name,
+            isMuted: val.isMuted
+          })));
+          
+          console.log(`[Voice] Cleaned up user ${user.name} (${socket.id}) from voice room ${pin} on disconnect`);
+        }
+      });
+
       const member = await Member.findOne({ socketId: socket.id });
       if (member) {
         const pin = member.roomPin;

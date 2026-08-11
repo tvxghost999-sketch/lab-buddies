@@ -63,6 +63,7 @@ interface RoomState {
   toggleMuteMember: (id: string) => void;
   kickMember: (id: string) => void;
   transferHost: (id: string) => void;
+  claimHost: () => void;
 
   // Feed Actions
   addFeedItem: (item: Omit<FeedItem, 'id' | 'timestamp'>) => void;
@@ -248,18 +249,44 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         socketService.onMembersUpdated((membersList) => {
           const current = get().currentUser;
           if (current) {
-            const selfInList = membersList.find((m) => m.name === current.name);
-            if (selfInList && selfInList.role !== current.role) {
-              const updated = { ...current, role: selfInList.role };
-              set({ currentUser: updated });
-              if (typeof window !== 'undefined') {
-                sessionStorage.setItem(`room_user_${pin}`, JSON.stringify(updated));
+            const selfInList = membersList.find((m) => m.name.toLowerCase() === current.name.toLowerCase());
+            if (selfInList) {
+              let updated = { ...current };
+              let hasChanged = false;
+
+              if (selfInList.role !== current.role) {
+                updated.role = selfInList.role;
+                hasChanged = true;
+                get().addToast(`Your role was updated to: ${selfInList.role}`, 'info');
               }
-              get().addToast(`Your role was updated to: ${selfInList.role}`, 'info');
+
+              if (selfInList.name !== current.name) {
+                updated.name = selfInList.name;
+                hasChanged = true;
+              }
+
+              if (selfInList.isMuted !== current.isMuted) {
+                updated.isMuted = selfInList.isMuted;
+                hasChanged = true;
+                get().addToast(
+                  selfInList.isMuted 
+                    ? 'You have been muted by the host.' 
+                    : 'You have been unmuted by the host.', 
+                  selfInList.isMuted ? 'error' : 'success'
+                );
+              }
+
+              if (hasChanged) {
+                set({ currentUser: updated });
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem(`room_user_${pin}`, JSON.stringify(updated));
+                }
+              }
             }
           }
           set({ members: membersList });
         });
+
 
         socketService.onActivitiesUpdated((activitiesList) => {
           set({ activities: activitiesList });
@@ -491,6 +518,10 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   transferHost: (id) => {
     const pin = get().activeRoom?.pin;
     if (pin) socketService.transferHost(pin, id);
+  },
+  claimHost: () => {
+    const pin = get().activeRoom?.pin;
+    if (pin) socketService.claimHost(pin);
   },
 
   // Feed/Post Actions

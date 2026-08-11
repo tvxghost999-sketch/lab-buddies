@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   Settings, ShieldAlert, Lock, Trash2, Info, 
@@ -28,6 +28,13 @@ export default function SettingsPage() {
   const showConfirm = useRoomStore((state) => state.showConfirm);
 
   const isHost = currentUser?.role === 'host';
+
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'host') {
+      addToast('Access denied: settings can only be accessed and modified by the host.', 'error');
+      router.replace(`/room/${pin}`);
+    }
+  }, [currentUser, pin, router, addToast]);
 
   const parseTimerToMinutes = (timerStr?: string) => {
     if (!timerStr) return 120;
