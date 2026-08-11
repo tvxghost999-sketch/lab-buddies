@@ -8,8 +8,6 @@ import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { Input, Select } from '@/components/ui/input';
 import { useRoomStore } from '@/store/roomStore';
-import AdInterstitial from '@/components/AdInterstitial';
-import BannerAd from '@/components/BannerAd';
 import Image from 'next/image';
 
 
@@ -57,17 +55,9 @@ export default function CreateRoomPage() {
     }
   }, [loggedInUser]);
 
-  const [isAdOpen, setIsAdOpen] = useState(false);
-
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
-    if (!isPremium) {
-      setIsAdOpen(true);
-    } else {
-      proceedWithCreation();
-    }
+    proceedWithCreation();
   };
 
   const proceedWithCreation = async () => {
@@ -77,7 +67,6 @@ export default function CreateRoomPage() {
     }
     const autoDeleteTimer = formatDurationDisplay(durationMinutes);
     const newPin = await createRoom(roomName, maxMembers, autoDeleteTimer, roomPassword, creatorName);
-    setIsAdOpen(false);
     router.push(`/room/${newPin}`);
   };
 
@@ -327,18 +316,6 @@ export default function CreateRoomPage() {
 
         </div>
       </main>
-
-      {/* Banner Ad Section */}
-      <div className="w-full max-w-md mx-auto px-4 mt-8 mb-4 relative z-10">
-        <BannerAd />
-      </div>
-
-      <AdInterstitial
-        isOpen={isAdOpen}
-        onComplete={proceedWithCreation}
-        onClose={() => setIsAdOpen(false)}
-        actionLabel="Creating Room"
-      />
     </div>
   );
 }

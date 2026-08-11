@@ -10,8 +10,6 @@ import Card from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useRoomStore } from '@/store/roomStore';
 import { socketService } from '@/lib/socket';
-import AdInterstitial from '@/components/AdInterstitial';
-import BannerAd from '@/components/BannerAd';
 import Image from 'next/image';
 
 export default function JoinRoomPage() {
@@ -19,20 +17,6 @@ export default function JoinRoomPage() {
   const joinRoom = useRoomStore((state) => state.joinRoom);
   const addToast = useRoomStore((state) => state.addToast);
   const loggedInUser = useRoomStore((state) => state.loggedInUser);
-
-  const [isAdOpen, setIsAdOpen] = useState(false);
-  const [adCallback, setAdCallback] = useState<(() => void) | null>(null);
-
-  const triggerJoinWithAd = (callback: () => void) => {
-    const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
-    if (!isPremium) {
-      setAdCallback(() => callback);
-      setIsAdOpen(true);
-    } else {
-      callback();
-    }
-  };
-
 
   const [activeTab, setActiveTab] = useState<'pin' | 'qr'>('pin');
   const [guestName, setGuestName] = useState('');
@@ -290,7 +274,7 @@ export default function JoinRoomPage() {
       return;
     }
     
-    triggerJoinWithAd(() => proceedWithJoinByPin(pin));
+    proceedWithJoinByPin(pin);
   };
 
   const proceedWithJoinByPin = async (pin: string) => {
@@ -305,8 +289,7 @@ export default function JoinRoomPage() {
       localStorage.setItem('lab_buddies_guest_name', nameToUse);
     }
     
-    setIsAdOpen(false);
-    
+
     setIsShuffling(true);
     const interval = setInterval(() => {
       setShuffledDigits(Array(6).fill('').map(() => Math.floor(Math.random() * 10).toString()));
@@ -614,23 +597,6 @@ export default function JoinRoomPage() {
           </div>
         </div>
       )}
-
-      {/* Banner Ad Section */}
-      <div className="w-full max-w-md mx-auto px-4 mt-8 mb-4 relative z-10">
-        <BannerAd />
-      </div>
-
-      <AdInterstitial 
-        isOpen={isAdOpen} 
-        onComplete={() => {
-          if (adCallback) adCallback();
-        }} 
-        onClose={() => {
-          setIsAdOpen(false);
-          setAdCallback(null);
-        }} 
-        actionLabel="Joining Room" 
-      />
     </div>
   );
 }

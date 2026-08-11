@@ -11,7 +11,6 @@ import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import { Switch, Select } from '@/components/ui/input';
 import { socketService } from '@/lib/socket';
-import BannerAd from '@/components/BannerAd';
 
 export default function SettingsPage() {
   const params = useParams();
@@ -444,11 +443,6 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-
-          {/* Banner Ad */}
-          <div className="w-full select-none">
-            <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
-          </div>
 
           {/* Card 2: Room Information */}
           <div className="glass-card p-4 flex flex-col gap-4 text-left">

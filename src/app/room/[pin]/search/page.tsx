@@ -12,7 +12,6 @@ import { Select } from '@/components/ui/input';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import AdInterstitial from '@/components/AdInterstitial';
-import BannerAd from '@/components/BannerAd';
 import { getBackendUrl } from '@/lib/adminAuth';
 import { normalizeFileUrl } from '@/lib/cloudinary';
 
@@ -293,11 +292,6 @@ export default function SearchPage() {
             {tab.label}
           </button>
         ))}
-      </div>
-
-      {/* Banner Ad */}
-      <div className="w-full select-none">
-        <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
       </div>
 
       {/* Main split grid: Filters (left) and Results (right) */}

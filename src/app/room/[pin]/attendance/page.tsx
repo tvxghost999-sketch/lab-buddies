@@ -11,7 +11,6 @@ import { socketService } from '@/lib/socket';
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { getBackendUrl } from '@/lib/adminAuth';
-import BannerAd from '@/components/BannerAd';
 
 export default function LabAttendancePage() {
   const params = useParams();
@@ -478,10 +477,6 @@ export default function LabAttendancePage() {
             </div>
           )}
 
-          {/* Banner Ad */}
-          <div className="w-full select-none">
-            <BannerAd dark={true} className="border-white/[0.08] !max-w-full" />
-          </div>
 
           {/* Current Session Attendees list */}
           {activeSession && (
