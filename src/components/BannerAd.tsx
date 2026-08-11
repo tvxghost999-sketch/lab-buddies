@@ -87,11 +87,11 @@ export default function BannerAd({ className = '', dark = false }: BannerAdProps
   if (isPremium) return null;
 
   return (
-    <div className={`w-full max-w-2xl mx-auto border flex relative overflow-hidden select-none min-h-[140px] transition-all duration-500 ${
+    <div className={`w-full border flex flex-col xs:flex-row relative overflow-hidden select-none rounded-xl transition-all duration-500 ${
       dark 
         ? 'border-white/[0.08] bg-[#0f0f10] text-[#f4f4f5] shadow-[0_2px_12px_rgba(0,0,0,0.4)]' 
         : 'border-black/10 bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.05)]'
-    } bg-gradient-to-br ${className}`}>
+    } ${className}`}>
       {/* AdChoices Badge in Top-Right */}
       <div className="absolute top-2 right-2.5 flex items-center gap-1 z-10">
         <svg className="w-3.5 h-3.5 text-blue-500 fill-current" viewBox="0 0 24 24">
@@ -103,8 +103,8 @@ export default function BannerAd({ className = '', dark = false }: BannerAdProps
         </svg>
       </div>
 
-      {/* Ad Image Column (Left) */}
-      <div className={`w-[32%] sm:w-1/4 relative flex items-center justify-center border-r overflow-hidden ${
+      {/* Ad Image Row (top on mobile, left column on sm+) */}
+      <div className={`w-full h-28 sm:w-1/4 sm:h-auto relative flex items-center justify-center border-b sm:border-b-0 sm:border-r overflow-hidden flex-shrink-0 ${
         dark ? 'bg-white/[0.02] border-white/5' : 'bg-gray-100 border-black/5'
       }`}>
         <img 
@@ -114,7 +114,7 @@ export default function BannerAd({ className = '', dark = false }: BannerAdProps
         />
       </div>
 
-      {/* Ad Text & CTA Column (Right) */}
+      {/* Ad Text & CTA Column (below image on mobile, right on sm+) */}
       <div className="flex-1 p-4 pr-12 flex flex-col justify-between gap-2 min-w-0">
         <div className="flex flex-col gap-1 text-left">
           <span className={`text-sm sm:text-base font-bold leading-tight tracking-tight ${dark ? 'text-white' : 'text-gray-900'}`}>
