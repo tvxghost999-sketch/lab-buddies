@@ -297,29 +297,40 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!activeRoom) return;
 
-    const parseTimerMs = (timerStr?: string) => {
+    const parseTimerMs = (timerStr?: string | number) => {
       if (!timerStr) return 2 * 60 * 60 * 1000;
+      const str = String(timerStr);
       let totalMs = 0;
-      const hourMatch = timerStr.match(/(\d+)\s*h(?:our)?s?/i);
+      const hourMatch = str.match(/(\d+)\s*h(?:our)?s?/i);
       if (hourMatch) {
         totalMs += parseInt(hourMatch[1], 10) * 60 * 60 * 1000;
       }
-      const minMatch = timerStr.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
+      const minMatch = str.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
       if (minMatch) {
         totalMs += parseInt(minMatch[1], 10) * 60 * 1000;
       }
       if (totalMs === 0) {
-        const rawNum = parseInt(timerStr, 10);
+        const rawNum = parseInt(str, 10);
         if (!isNaN(rawNum) && rawNum > 0) totalMs = rawNum * 60 * 1000;
       }
-      return totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
+      const maxAllowedMs = 24 * 60 * 60 * 1000; // max 24 hrs
+      const minAllowedMs = 5 * 60 * 1000; // min 5 mins
+      const finalMs = totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
+      return Math.min(maxAllowedMs, Math.max(minAllowedMs, finalMs));
     };
 
     const updateCountdown = () => {
       const durationMs = parseTimerMs(activeRoom.autoDeleteTimer);
-      const createdMs = activeRoom.createdAtMs || (activeRoom.createdAt ? new Date(activeRoom.createdAt).getTime() : Date.now());
+      let createdMs = activeRoom.createdAtMs;
+      if (!createdMs || isNaN(createdMs)) {
+        if (activeRoom.createdAt && !isNaN(new Date(activeRoom.createdAt).getTime())) {
+          createdMs = new Date(activeRoom.createdAt).getTime();
+        } else {
+          createdMs = Date.now();
+        }
+      }
       const elapsedMs = Math.max(0, Date.now() - createdMs);
-      const remainingMs = Math.max(0, durationMs - elapsedMs);
+      const remainingMs = Math.max(0, Math.min(durationMs, durationMs - elapsedMs));
 
       const totalSeconds = Math.floor(remainingMs / 1000);
       const hrs = Math.floor(totalSeconds / 3600);

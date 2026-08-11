@@ -46,6 +46,11 @@ interface AdminRoom {
   isMuted: boolean;
   autoDeleteTimer: string;
   createdAt: string;
+  createdAtMs?: number;
+  expiresAtMs?: number;
+  durationMs?: number;
+  remainingMs?: number;
+  remainingFormatted?: string;
   fileCount: number;
   memberCount: number;
   storageMB: string;
@@ -119,9 +124,12 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
     setIsMounted(true);
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   // Filters
@@ -386,6 +394,74 @@ export default function AdminDashboardPage() {
     setLoggedInUser(null);
     addToast('Admin signed out.', 'info');
     router.push(ADMIN_LOGIN_PATH);
+  };
+
+  const parseTimerMs = (timerStr?: string | number) => {
+    if (!timerStr) return 2 * 60 * 60 * 1000;
+    const str = String(timerStr);
+    let totalMs = 0;
+    const hourMatch = str.match(/(\d+)\s*h(?:our)?s?/i);
+    if (hourMatch) totalMs += parseInt(hourMatch[1], 10) * 60 * 60 * 1000;
+    const minMatch = str.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
+    if (minMatch) totalMs += parseInt(minMatch[1], 10) * 60 * 1000;
+    if (totalMs === 0) {
+      const rawNum = parseInt(str, 10);
+      if (!isNaN(rawNum) && rawNum > 0) totalMs = rawNum * 60 * 1000;
+    }
+    const maxAllowedMs = 24 * 60 * 60 * 1000; // max 24 hrs
+    const minAllowedMs = 5 * 60 * 1000; // min 5 mins
+    const finalMs = totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
+    return Math.min(maxAllowedMs, Math.max(minAllowedMs, finalMs));
+  };
+
+  const cleanTimerDisplay = (timerStr?: string | number) => {
+    if (!timerStr) return '2 Hours';
+    const totalMs = parseTimerMs(timerStr);
+    const totalMins = Math.round(totalMs / 60000);
+    if (totalMins < 60) return `${totalMins} Minutes`;
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    if (m === 0) return `${h} ${h === 1 ? 'Hour' : 'Hours'}`;
+    return `${h} ${h === 1 ? 'Hour' : 'Hours'} ${m} Minutes`;
+  };
+
+  // Helper to calculate exact remaining self-destruct countdown
+  const formatRemainingTime = (room: AdminRoom, now: number) => {
+    const durationMs = parseTimerMs(room.autoDeleteTimer);
+    let createdMs = room.createdAtMs;
+    if (!createdMs || isNaN(createdMs)) {
+      if (room.createdAt && !isNaN(new Date(room.createdAt).getTime())) {
+        createdMs = new Date(room.createdAt).getTime();
+      } else {
+        createdMs = now;
+      }
+    }
+    const expiresAtMs = createdMs + durationMs;
+    const remainingMs = Math.max(0, Math.min(durationMs, expiresAtMs - now));
+
+    if (remainingMs <= 0) {
+      return {
+        text: 'Expired (Purging)',
+        isUrgent: true,
+        isExpired: true,
+        percentLeft: 0,
+        remainingMs: 0
+      };
+    }
+
+    const totalSecs = Math.floor(remainingMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    const isUrgent = remainingMs < 10 * 60 * 1000; // less than 10 mins
+
+    const text = hrs > 0 
+      ? `${hrs}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`
+      : `${mins}m ${String(secs).padStart(2, '0')}s`;
+
+    const percentLeft = Math.min(100, Math.max(0, Math.round((remainingMs / durationMs) * 100)));
+
+    return { text, isUrgent, isExpired: false, percentLeft, remainingMs };
   };
 
   // Filtered lists
@@ -670,12 +746,14 @@ export default function AdminDashboardPage() {
                         <th className="py-3 px-4">Online</th>
                         <th className="py-3 px-4">Files</th>
                         <th className="py-3 px-4">Storage</th>
-                        <th className="py-3 px-4">Self-Destruct</th>
+                        <th className="py-3 px-4">Destructs In (Remaining)</th>
                         <th className="py-3 px-4 text-right">Admin Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.06]">
-                      {filteredRooms.map((room) => (
+                      {filteredRooms.map((room) => {
+                        const { text, isUrgent, isExpired, percentLeft } = formatRemainingTime(room, currentTime);
+                        return (
                         <tr key={room.pin} className="hover:bg-white/[0.02] transition-colors">
                           <td className="py-3 px-4 font-mono font-bold text-[#FFD600]">
                             #{room.pin}
@@ -694,7 +772,35 @@ export default function AdminDashboardPage() {
                           <td className="py-3 px-4 text-[#a1a1aa]">
                             {room.storageMB} / {room.storageLimitMB} MB
                           </td>
-                          <td className="py-3 px-4 text-[#71717a]">{room.autoDeleteTimer}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-col gap-1 min-w-[140px] select-none">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold tracking-tight border ${
+                                  isExpired 
+                                    ? 'bg-[#EF4444]/15 border-[#EF4444]/30 text-[#EF4444]'
+                                    : isUrgent 
+                                      ? 'bg-[#EF4444]/15 border-[#EF4444]/30 text-[#EF4444] animate-pulse' 
+                                      : 'bg-[#FF6A00]/10 border-[#FF6A00]/25 text-[#FF6A00]'
+                                }`}>
+                                  <Clock className="w-3 h-3 flex-shrink-0" />
+                                  <span>{text}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-[#71717a] px-0.5">
+                                <span>Lifespan: {cleanTimerDisplay(room.autoDeleteTimer)}</span>
+                                <span className={isUrgent ? 'text-[#EF4444] font-semibold' : ''}>{percentLeft}%</span>
+                              </div>
+                              {/* Visual countdown progress bar */}
+                              <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all duration-1000 ${
+                                    isExpired ? 'bg-[#EF4444]' : isUrgent ? 'bg-[#EF4444]' : 'bg-[#FF6A00]'
+                                  }`}
+                                  style={{ width: `${percentLeft}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
@@ -719,7 +825,8 @@ export default function AdminDashboardPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

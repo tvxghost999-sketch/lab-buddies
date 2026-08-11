@@ -373,6 +373,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         isFileSharingEnabled: true,
         roomVisibility: true,
         createdAt: timestamp,
+        createdAtMs: Date.now(),
         createdBy: creatorName,
         status: 'Active',
       }

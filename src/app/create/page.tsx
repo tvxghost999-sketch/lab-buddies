@@ -15,6 +15,7 @@ export default function CreateRoomPage() {
   const router = useRouter();
   const createRoom = useRoomStore((state) => state.createRoom);
   const loggedInUser = useRoomStore((state) => state.loggedInUser);
+  const addToast = useRoomStore((state) => state.addToast);
 
   const [roomName, setRoomName] = useState('lab-row-1');
   const [maxMembers, setMaxMembers] = useState(10);
@@ -22,10 +23,12 @@ export default function CreateRoomPage() {
   const [hostName, setHostName] = useState('');
   const [roomPassword, setRoomPassword] = useState('');
 
-  const formatDurationDisplay = (mins: number) => {
-    if (mins < 60) return `${mins} Minutes`;
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
+  const formatDurationDisplay = (minsInput: number | string) => {
+    const raw = typeof minsInput === 'number' ? minsInput : parseInt(minsInput, 10);
+    const safeMins = isNaN(raw) ? 60 : Math.max(5, Math.min(1440, Math.round(raw)));
+    if (safeMins < 60) return `${safeMins} Minutes`;
+    const h = Math.floor(safeMins / 60);
+    const m = safeMins % 60;
     if (m === 0) return `${h} ${h === 1 ? 'Hour' : 'Hours'}`;
     return `${h} ${h === 1 ? 'Hour' : 'Hours'} ${m} Minutes`;
   };
@@ -57,6 +60,10 @@ export default function CreateRoomPage() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (durationMinutes > 1440) {
+      addToast('Room destruction timer cannot exceed 24 hours (1440 minutes).', 'error');
+      return;
+    }
     proceedWithCreation();
   };
 
@@ -192,17 +199,18 @@ export default function CreateRoomPage() {
                         <input
                           type="number"
                           min={5}
+                          max={1440}
                           step={5}
                           value={durationMinutes}
                           onChange={(e) => {
                             const val = parseInt(e.target.value, 10);
                             if (isNaN(val)) setDurationMinutes(5);
-                            else setDurationMinutes(Math.max(5, val));
+                            else setDurationMinutes(Math.min(1440, Math.max(5, val)));
                           }}
                           onBlur={() => {
                             setDurationMinutes((prev) => {
                               const snapped = Math.round(prev / 5) * 5;
-                              return Math.max(5, snapped);
+                              return Math.min(1440, Math.max(5, snapped));
                             });
                           }}
                           className="neo-input w-full text-center font-mono font-bold text-sm"
@@ -212,8 +220,9 @@ export default function CreateRoomPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setDurationMinutes((prev) => prev + 5)}
-                        className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 flex items-center justify-center text-lg font-bold text-white transition-all select-none flex-shrink-0"
+                        onClick={() => setDurationMinutes((prev) => Math.min(1440, prev + 5))}
+                        disabled={durationMinutes >= 1440}
+                        className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-lg font-bold text-white transition-all select-none flex-shrink-0"
                         title="Increase by 5 minutes"
                       >
                         +
@@ -237,7 +246,7 @@ export default function CreateRoomPage() {
                         </button>
                       ))}
                     </div>
-                    <span className="text-[10px] text-[#52525b]">Min 5 mins. Step by 5 min.</span>
+                    <span className="text-[10px] text-[#52525b]">Min 5 mins, Max 24 hours (1440 mins). Step by 5 min.</span>
                   </div>
                 </div>
 

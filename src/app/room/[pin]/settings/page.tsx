@@ -37,24 +37,30 @@ export default function SettingsPage() {
     }
   }, [currentUser, pin, router, addToast]);
 
-  const parseTimerToMinutes = (timerStr?: string) => {
+  const parseTimerToMinutes = (timerStr?: string | number) => {
     if (!timerStr) return 120;
+    if (typeof timerStr === 'number') {
+      return Math.max(5, Math.min(1440, Math.round(timerStr)));
+    }
+    const str = String(timerStr);
     let total = 0;
-    const h = timerStr.match(/(\d+)\s*h(?:our)?s?/i);
+    const h = str.match(/(\d+)\s*h(?:our)?s?/i);
     if (h) total += parseInt(h[1], 10) * 60;
-    const m = timerStr.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
+    const m = str.match(/(\d+)\s*m(?:in(?:ute)?)?s?/i);
     if (m) total += parseInt(m[1], 10);
     if (total === 0) {
-      const raw = parseInt(timerStr, 10);
+      const raw = parseInt(str, 10);
       if (!isNaN(raw) && raw > 0) total = raw;
     }
-    return Math.max(5, total || 120);
+    return Math.max(5, Math.min(1440, total || 120));
   };
 
-  const formatDurationDisplay = (mins: number) => {
-    if (mins < 60) return `${mins} Minutes`;
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
+  const formatDurationDisplay = (minsInput: number | string) => {
+    const raw = typeof minsInput === 'number' ? minsInput : parseInt(minsInput, 10);
+    const safeMins = isNaN(raw) ? 60 : Math.max(5, Math.min(1440, Math.round(raw)));
+    if (safeMins < 60) return `${safeMins} Minutes`;
+    const h = Math.floor(safeMins / 60);
+    const m = safeMins % 60;
     if (m === 0) return `${h} ${h === 1 ? 'Hour' : 'Hours'}`;
     return `${h} ${h === 1 ? 'Hour' : 'Hours'} ${m} Minutes`;
   };
@@ -72,6 +78,10 @@ export default function SettingsPage() {
     }
     if (!roomName.trim()) {
       addToast('Room name cannot be empty.', 'error');
+      return;
+    }
+    if (durationMinutes > 1440) {
+      addToast('Room destruction timer cannot exceed 24 hours (1440 minutes).', 'error');
       return;
     }
 
@@ -210,18 +220,19 @@ export default function SettingsPage() {
                       <input
                         type="number"
                         min={5}
+                        max={1440}
                         step={5}
                         disabled={!isHost}
                         value={durationMinutes}
                         onChange={(e) => {
                           const val = parseInt(e.target.value, 10);
                           if (isNaN(val)) setDurationMinutes(5);
-                          else setDurationMinutes(Math.max(5, val));
+                          else setDurationMinutes(Math.min(1440, Math.max(5, val)));
                         }}
                         onBlur={() => {
                           setDurationMinutes((prev) => {
                             const snapped = Math.round(prev / 5) * 5;
-                            return Math.max(5, snapped);
+                            return Math.min(1440, Math.max(5, snapped));
                           });
                         }}
                         className="neo-input w-full text-center font-mono font-bold text-sm"
@@ -231,8 +242,8 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      disabled={!isHost}
-                      onClick={() => setDurationMinutes((prev) => prev + 5)}
+                      disabled={!isHost || durationMinutes >= 1440}
+                      onClick={() => setDurationMinutes((prev) => Math.min(1440, prev + 5))}
                       className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-lg font-bold text-white transition-all select-none flex-shrink-0"
                       title="Increase by 5 minutes"
                     >
@@ -258,7 +269,7 @@ export default function SettingsPage() {
                       </button>
                     ))}
                   </div>
-                  <span className="text-[10px] text-[#52525b]">Min 5 mins. Step by 5 min.</span>
+                  <span className="text-[10px] text-[#52525b]">Min 5 mins, Max 24 hours (1440 mins). Step by 5 min.</span>
                 </div>
               </div>
 

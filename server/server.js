@@ -370,7 +370,10 @@ const parseTimerDuration = (timerStr) => {
     const rawNum = parseInt(timerStr, 10);
     if (!isNaN(rawNum) && rawNum > 0) totalMs = rawNum * 60 * 1000;
   }
-  return totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
+  const maxAllowedMs = 24 * 60 * 60 * 1000; // STRICT 24-HOUR MAXIMUM
+  const minAllowedMs = 5 * 60 * 1000; // 5-MINUTE MINIMUM
+  const finalMs = totalMs > 0 ? totalMs : 2 * 60 * 60 * 1000;
+  return Math.min(maxAllowedMs, Math.max(minAllowedMs, finalMs));
 };
 
 const cleanupRoomData = async (pin, destructionReason = 'Timer Expiry') => {
@@ -797,6 +800,13 @@ app.post('/api/room', async (req, res) => {
       return res.status(400).json({ error: 'Room already exists.' });
     }
 
+    // Strict 24-hour limit validation on backend
+    const durationMs = parseTimerDuration(autoDeleteTimer);
+    const maxAllowedMs = 24 * 60 * 60 * 1000;
+    if (durationMs > maxAllowedMs) {
+      return res.status(400).json({ error: 'Room destruction timer cannot exceed 24 hours (1440 minutes).' });
+    }
+
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Today';
 
     const newRoom = new Room({
@@ -1173,14 +1183,44 @@ app.get('/api/admin/metrics', adminAuthMiddleware, async (req, res) => {
 app.get('/api/admin/rooms', adminAuthMiddleware, async (req, res) => {
   try {
     const rooms = await Room.find().sort({ _id: -1 }).limit(100);
+    const now = Date.now();
     
-    // Enrich with file counts and member counts
+    // Enrich with file counts, member counts, and self-destruct timing
     const enrichedRooms = await Promise.all(rooms.map(async (r) => {
       const fileCount = await FeedItem.countDocuments({ roomPin: r.pin, type: 'file' });
       const memberCount = await Member.countDocuments({ roomPin: r.pin, isOnline: true });
       const files = await FeedItem.find({ roomPin: r.pin, type: 'file' }).select('fileSizeBytes');
       const storageBytes = files.reduce((sum, f) => sum + (f.fileSizeBytes || 0), 0);
       
+      const durationMs = parseTimerDuration(r.autoDeleteTimer);
+      let createdAtMs = r.createdAtMs;
+      if (!createdAtMs || isNaN(createdAtMs)) {
+        if (r.createdAt && !isNaN(new Date(r.createdAt).getTime())) {
+          createdAtMs = new Date(r.createdAt).getTime();
+        } else {
+          createdAtMs = now;
+        }
+      }
+      const expiresAtMs = createdAtMs + durationMs;
+      const remainingMs = Math.max(0, Math.min(durationMs, expiresAtMs - now));
+
+      const totalSecs = Math.floor(remainingMs / 1000);
+      const hrs = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+      const remainingFormatted = remainingMs <= 0 
+        ? 'Expired' 
+        : hrs > 0 
+          ? `${hrs}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s` 
+          : `${mins}m ${String(secs).padStart(2, '0')}s`;
+
+      const safeDurationMins = Math.round(durationMs / 60000);
+      const cleanTimerStr = safeDurationMins < 60 
+        ? `${safeDurationMins} Minutes`
+        : safeDurationMins % 60 === 0 
+          ? `${safeDurationMins / 60} ${safeDurationMins === 60 ? 'Hour' : 'Hours'}`
+          : `${Math.floor(safeDurationMins / 60)} Hours ${safeDurationMins % 60} Minutes`;
+
       return {
         pin: r.pin,
         name: r.name,
@@ -1188,8 +1228,13 @@ app.get('/api/admin/rooms', adminAuthMiddleware, async (req, res) => {
         status: r.status,
         isLocked: r.isLocked,
         isMuted: r.isMuted,
-        autoDeleteTimer: r.autoDeleteTimer,
+        autoDeleteTimer: cleanTimerStr,
         createdAt: r.createdAt,
+        createdAtMs,
+        expiresAtMs,
+        durationMs,
+        remainingMs,
+        remainingFormatted,
         fileCount,
         memberCount,
         storageMB: (storageBytes / (1024 * 1024)).toFixed(2),
@@ -1948,7 +1993,15 @@ io.on('connection', (socket) => {
       if (room) {
         if (settings.name !== undefined) room.name = settings.name;
         if (settings.maxMembers !== undefined) room.maxMembers = settings.maxMembers;
-        if (settings.autoDeleteTimer !== undefined) room.autoDeleteTimer = settings.autoDeleteTimer;
+        if (settings.autoDeleteTimer !== undefined) {
+          const duration = parseTimerDuration(settings.autoDeleteTimer);
+          const maxAllowed = 24 * 60 * 60 * 1000;
+          if (duration > maxAllowed) {
+            socket.emit('rate-limited', { message: 'Room destruction timer cannot exceed 24 hours (1440 minutes).' });
+            return;
+          }
+          room.autoDeleteTimer = settings.autoDeleteTimer;
+        }
         if (settings.roomVisibility !== undefined) room.roomVisibility = settings.roomVisibility;
         await room.save();
 
