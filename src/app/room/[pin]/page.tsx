@@ -18,8 +18,6 @@ import { getBackendUrl } from '@/lib/adminAuth';
 import Card from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
 import Button from '@/components/ui/button';
-import AdInterstitial from '@/components/AdInterstitial';
-import BannerAd from '@/components/BannerAd';
 import { useVoiceRoom, useVoiceListener } from '@/hooks/useVoiceRoom';
 
 export default function RoomDashboard() {
@@ -153,8 +151,6 @@ export default function RoomDashboard() {
   const [selectedFileUrl, setSelectedFileUrl] = useState('');
   const [selectedFileCloudinaryId, setSelectedFileCloudinaryId] = useState('');
   const [isFileUploading, setIsFileUploading] = useState(false);
-  const [isAdOpen, setIsAdOpen] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState<{ fileName: string; fileUrl?: string; fileId?: string } | null>(null);
 
   // Drag and drop file upload states
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -701,30 +697,11 @@ export default function RoomDashboard() {
     }
     lastDownloadTimesRef.current[fileItem.id] = now;
 
-    const isPremium = loggedInUser?.plan && loggedInUser.plan !== 'free';
-
-    // Track free download count: Ad triggers on every 4th download (3 free downloads allowed)
-    const countStr = typeof window !== 'undefined' ? (localStorage.getItem('lab_buddies_downloads_count') || '0') : '0';
-    const count = parseInt(countStr, 10);
-    const nextCount = count + 1;
-
-    if (!isPremium && nextCount > 0 && nextCount % 4 === 0) {
-      // 4th download attempt: Require ad completion before incrementing and downloading
-      setPendingDownload({ fileName: fileItem.fileName, fileUrl: fileItem.fileUrl, fileId: fileItem.id });
-      setIsAdOpen(true);
-    } else {
-      // Free download (1st, 2nd, 3rd) or Premium: Increment immediately and proceed
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('lab_buddies_downloads_count', nextCount.toString());
-      }
-      executeFileDownload(fileItem.id, fileItem.fileName, fileItem.fileUrl);
-    }
+    executeFileDownload(fileItem.id, fileItem.fileName, fileItem.fileUrl);
   };
 
   const executeFileDownload = (fileId: string, fileName: string, fileUrl: string) => {
     setDownloadingIds((prev) => ({ ...prev, [fileId]: true }));
-    setIsAdOpen(false);
-    setPendingDownload(null);
     addToast(`Downloading ${fileName}...`, 'info');
 
     // Track download analytics
@@ -861,7 +838,7 @@ export default function RoomDashboard() {
   }, [members]);
 
   return (
-    <div className="relative flex flex-col h-full w-full md:h-[calc(100vh-6rem)] border-0 md:border border-white/[0.08] bg-[#0f0f10] md:rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+    <div className="relative flex flex-col h-full w-full min-h-0 border-0 md:border border-white/[0.08] bg-[#0f0f10] md:rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
       {/* Global Drag and Drop File Overlay */}
       {isDraggingOver && (
         <div className="fixed inset-0 z-[9999] bg-[#050608]/85 backdrop-blur-md flex flex-col items-center justify-center p-6 select-none animate-in fade-in duration-150 pointer-events-none">
@@ -946,7 +923,7 @@ export default function RoomDashboard() {
       {/* Message Feed Display */}
       <div 
         ref={chatFeedRef}
-        className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-4 bg-black/20"
+        className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 flex flex-col gap-4 bg-black/20 custom-scrollbar"
       >
         {feedItems.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center gap-2 select-none py-10">
@@ -1293,8 +1270,8 @@ export default function RoomDashboard() {
         )}
       </div>
 
-      {/* Composer Frame */}
-      <div className="p-4 border-t border-white/[0.08] bg-[#0f0f10] flex flex-col gap-3 flex-shrink-0">
+      {/* Composer Frame (Fixed at screen bottom) */}
+      <div className="p-3 sm:p-4 border-t border-white/[0.08] bg-[#0f0f10] flex flex-col gap-3 flex-shrink-0 sticky bottom-0 z-20">
         
         {/* Code Snippet Editor (Above Input) */}
         {isCodeEditorOpen && (
@@ -1577,25 +1554,6 @@ export default function RoomDashboard() {
 
         </form>
       </div>
-      <AdInterstitial 
-        isOpen={isAdOpen} 
-        onComplete={() => {
-          if (typeof window !== 'undefined') {
-            const countStr = localStorage.getItem('lab_buddies_downloads_count') || '0';
-            const count = parseInt(countStr, 10);
-            localStorage.setItem('lab_buddies_downloads_count', (count + 1).toString());
-          }
-          if (pendingDownload && pendingDownload.fileUrl) {
-            executeFileDownload(pendingDownload.fileId || `file-${Date.now()}`, pendingDownload.fileName, pendingDownload.fileUrl);
-          }
-        }} 
-        onClose={() => {
-          setIsAdOpen(false);
-          setPendingDownload(null);
-          addToast('Ad was cancelled. Download aborted.', 'warning');
-        }} 
-        actionLabel="Starting Download" 
-      />
 
       {/* WhatsApp In-App File Preview Modal */}
       {previewFile && (

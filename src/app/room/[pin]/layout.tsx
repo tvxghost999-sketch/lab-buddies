@@ -807,7 +807,7 @@ export default function RoomLayout({ children }: { children: React.ReactNode }) 
         </AnimatePresence>
 
         {/* Page Content area */}
-        <main className="flex-1 p-0 md:p-6 overflow-y-auto overflow-x-hidden h-full bg-[#050608]">
+        <main className={`flex-1 ${pathname === `/room/${pin}` || pathname === `/room/${pin}/` ? 'p-0 md:p-6 overflow-hidden flex flex-col' : 'p-0 md:p-6 overflow-y-auto overflow-x-hidden'} h-full bg-[#050608] min-h-0`}>
           {children}
         </main>
       </div>
