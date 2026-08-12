@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/og-image.png?v=6",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Lab Buddies - Free No-Login File & Code Sharing Platform",
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Lab Buddies — Share Files & Code with No Login | Snapdrop Alternative",
     description: "Instant ephemeral study rooms for students. Share files, code snippets, notes, and links anonymously with a 6-digit Room PIN.",
-    images: ["/og-image.png?v=6"],
+    images: ["/og-image.png"],
     creator: "@labbuddies",
   },
   robots: {
@@ -90,15 +90,16 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  manifest: '/manifest.json',
   icons: {
     icon: [
-      { url: '/favicon.ico?v=6', sizes: 'any' },
-      { url: '/icon-192.png?v=6', type: 'image/png', sizes: '192x192' },
-      { url: '/icon-512.png?v=6', type: 'image/png', sizes: '512x512' },
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
     ],
-    shortcut: '/favicon.ico?v=6',
+    shortcut: '/favicon.ico',
     apple: [
-      { url: '/apple-touch-icon.png?v=6', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
   },
 };
@@ -111,17 +112,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full scroll-smooth">
       <head>
-        <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#050608" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LabBuddies" />
-        <link rel="icon" href="/favicon.ico?v=6" sizes="any" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=6" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=6" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=6" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=6" />
-        <link rel="shortcut icon" href="/favicon.ico?v=6" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
